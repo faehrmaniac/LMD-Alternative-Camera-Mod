@@ -5,7 +5,8 @@ namespace AlternativeCameraMod;
 
 internal class State
 {
-   private readonly Logger _logger;
+   private static readonly Logger Log = LogProvider.GetLogger<State>();
+
    private readonly Dictionary<string, GameObject> _menuObjects = new();
    private bool _suspended;
    private Screen _lastScreenState;
@@ -38,9 +39,8 @@ internal class State
 
 
 
-   public State(Logger logger)
+   public State()
    {
-      _logger = logger;
    }
 
 
@@ -124,7 +124,7 @@ internal class State
    public void TrackPausedInPhotoMode()
    {
       _menuWasOpenedWhileInPhotoMode = true;
-      _logger.LogDebug("Open menu in photo mode");
+      Log.LogDebug("Open menu in photo mode");
    }
    
    
@@ -157,14 +157,14 @@ internal class State
 
    public void OnPhotoModeEnter()
    {
-      _logger.LogDebug("Enter photomode: {0} / {1} / {2}", _lastScreenState, _currentScreen, _menuWasOpenedWhileInPhotoMode);
+      Log.LogDebug("Enter photomode: {0} / {1} / {2}", _lastScreenState, _currentScreen, _menuWasOpenedWhileInPhotoMode);
       LastScreenshotInfo = null;
    }
 
 
    public void OnPhotoModeExit()
    {
-      _logger.LogDebug("Exit photomode: {0} / {1} / {2}", _lastScreenState, _currentScreen, _menuWasOpenedWhileInPhotoMode);
+      Log.LogDebug("Exit photomode: {0} / {1} / {2}", _lastScreenState, _currentScreen, _menuWasOpenedWhileInPhotoMode);
       PhotoModeInstructionsVisible = true; // next time show instruction again
       _needCameraReset = true;
       _handleStuckBike = true;
@@ -186,7 +186,7 @@ internal class State
    public void CheckMenuOpen()
    {
       _isMenuOpen = _menuObjects.Values.Any(g => g.active);
-      _logger.LogDebug(_isMenuOpen && _isMenuOpen != _isMenuLastOpen, "Menu opened");
+      Log.LogDebug(_isMenuOpen && _isMenuOpen != _isMenuLastOpen, "Menu opened");
       if (!_needCameraReset)
       {
          _needCameraReset = _isMenuLastOpen && !_isMenuOpen;
@@ -307,7 +307,7 @@ internal class State
          if (IsMenuObject(g.name))
          {
             _menuObjects[g.name] = g;
-            _logger.LogVerbose("Game Object: {0}", g.name);
+            Log.LogVerbose("Game Object: {0}", g.name);
          }
       }
 
@@ -329,7 +329,7 @@ internal class State
    {
       if (CheckGameScene(sceneName))
       {
-         _logger.LogDebug("Scene {0} loaded", sceneName);
+         Log.LogDebug("Scene {0} loaded", sceneName);
          _activeMapName = sceneName;
          _levelState = LevelState.WaitForStart;
          _trackSectionId = 0;

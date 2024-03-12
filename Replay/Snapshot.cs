@@ -8,8 +8,8 @@ namespace AlternativeCameraMod.Replay;
 /// <summary>
 /// Stores the state of an object at a single point in time.
 ///
-/// Timestamp|BikePos|BikeRot|CamPos|CamRot
-/// e.g. "0|0,0,0:0,0,0,0|0,0,0:0,0,0,0"
+/// Timestamp|CamPos|CamRot|AllBikeParts
+/// e.g. "0|0,0,0:0,0,0,0|0,0,0:0,0,0,0 ... "
 /// </summary>
 internal struct Snapshot
 {
@@ -18,36 +18,34 @@ internal struct Snapshot
    private const string LocationSep = ":";
    private const string PropSep = ",";
    
-   // private const string OverallFmt = SnapshotMarker + "{0}" + ElementSep + "{1}" + ElementSep + "{2}";
-
    private const string LocationFmt = "{0}" + PropSep + "{1}" + PropSep + "{2}" // pos
-                                       + LocationSep + "{3}" + PropSep + "{4}" + PropSep + "{5}" + PropSep + "{6}"; // rot  
+                                      + LocationSep + "{3}" + PropSep + "{4}" + PropSep + "{5}" + PropSep + "{6}"; // rot
 
    public int SectionId;
    public float Timestamp;
-   public List<Tuple<ReplayPart, Vector3, Quaternion>> Locations;
+   public List<Tuple<string, Vector3, Quaternion>> Locations;
 
 
-   public Snapshot(int sectionId, float timestamp, Vector3 camPosition, Quaternion camRotation, BikeAnimator bikeAnimator)
+   public Snapshot(int sectionId, float timestamp, Vector3 camPosition, Quaternion camRotation, BikeReanimator bikeReanimator)
    {
       SectionId = sectionId;
       Timestamp = timestamp;
-      Locations = new List<Tuple<ReplayPart, Vector3, Quaternion>>();
-      Add(ReplayPart.Camera, camPosition, camRotation);
-      foreach (var loc in bikeAnimator.GetLocations())
+      Locations = new List<Tuple<string, Vector3, Quaternion>>();
+      Add("Camera", camPosition, camRotation);
+      foreach (var loc in bikeReanimator.GetLocations())
       {
          Locations.Add(loc);
       }
    }
 
 
-   private void Add(ReplayPart part, Vector3 position, Quaternion rotation)
+   private void Add(string name, Vector3 position, Quaternion rotation)
    {
-      Locations.Add(new Tuple<ReplayPart, Vector3, Quaternion>(part, position, rotation));
+      Locations.Add(new Tuple<string, Vector3, Quaternion>(name, position, rotation));
    }
 
 
-   private Snapshot(int sectionId, float timestamp, List<Tuple<ReplayPart, Vector3, Quaternion>> locations)
+   private Snapshot(int sectionId, float timestamp, List<Tuple<string, Vector3, Quaternion>> locations)
    {
       SectionId = sectionId;
       Timestamp = timestamp;
@@ -55,7 +53,7 @@ internal struct Snapshot
    }
 
 
-   public static Snapshot Parse(int trackSection, string snapshotData)
+   public static Snapshot Parse(int trackSection, string snapshotData, BikeReanimator bikeReanimator)
    {
       if (String.IsNullOrEmpty(snapshotData))
       {
@@ -66,7 +64,7 @@ internal struct Snapshot
       
       var timestamp = ParseFloat(parts[0]);
       
-      var locList = new List<Tuple<ReplayPart, Vector3, Quaternion>>();
+      var locList = new List<Tuple<string, Vector3, Quaternion>>();
       for (int i = 1; i < parts.Length; i++)
       {
          string[] subParts = parts[i].Split(LocationSep);
@@ -83,7 +81,16 @@ internal struct Snapshot
             ParseFloat(rotParts[2]),
             ParseFloat(rotParts[3]));
 
-         locList.Add(new Tuple<ReplayPart, Vector3, Quaternion>((ReplayPart)(i - 1), position, rotation));
+         string name;
+         if (i == 1)
+         {
+            name = "Camera";
+         }
+         else
+         {
+            name = bikeReanimator.GetLocationName(i - 2);
+         }
+         locList.Add(new Tuple<string, Vector3, Quaternion>(name, position, rotation));
       }
 
       var snapshot = new Snapshot(trackSection, timestamp, locList);
@@ -124,7 +131,7 @@ internal struct Snapshot
 
    private string FormatFloat(float val)
    {
-      string fs = Math.Round(val, 5).ToString(CultureInfo.InvariantCulture);
+      string fs = Math.Round(val, 3).ToString(CultureInfo.InvariantCulture);
       return fs;
    }
 
@@ -136,25 +143,4 @@ internal struct Snapshot
    {
       return Format();
    }
-}
-
-
-internal enum ReplayPart
-{
-   Camera,
-   Bike,
-   Bike1,
-   Bike2,
-   Bike3,
-   Bike4,
-   Rider1,
-   Rider2,
-   Rider3,
-   BikeL1,
-   BikeL2,
-   BikeL3,
-   BikeL4,
-   RiderL1,
-   RiderL2,
-   RiderL3,
 }

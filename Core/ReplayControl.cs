@@ -1,9 +1,6 @@
-﻿using Il2CppMegagon.Downhill.Players;
-using Il2CppMegagon.Downhill.Vehicle.Controller;
-using AlternativeCameraMod.Config;
+﻿using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
 using AlternativeCameraMod.Replay;
-using Il2CppMegagon.Downhill.Vehicle.Animation;
 using UnityEngine;
 
 
@@ -11,12 +8,13 @@ namespace AlternativeCameraMod;
 
 internal class ReplayControl
 {
+   private static readonly Logger Log = LogProvider.GetLogger<ReplayControl>();
+
    private readonly State _state;
    private readonly CameraControl _camera;
    private readonly InputHandler _input;
    private readonly Configuration _cfg;
    private readonly LanguageConfig _lang;
-   private readonly Logger _logger;
 
    private Transform? _bikeTransform;
    private GameObject? _bike;
@@ -25,19 +23,18 @@ internal class ReplayControl
    private float _timer;
    private DownhillRecording _recording;
    private DownhillReplay _replay;
-   private BikeAnimator _bikeAnim;
-   private float _samplingLimit;
+   private BikeReanimator _bikeAnim;
+   private float _samplingThreshold;
 
 
    public ReplayControl(State state, CameraControl camera, InputHandler input, Configuration cfg,
-      LanguageConfig lang, Logger logger)
+      LanguageConfig lang)
    {
       _state = state;
       _camera = camera;
       _input = input;
       _cfg = cfg;
       _lang = lang;
-      _logger = logger;
 
       _state.TriggerOccurred += OnLevelTrigger;
    }
@@ -60,32 +57,17 @@ internal class ReplayControl
    }
    
 
-   private void GatherGameObjects()
-   {
-      if (_bike == null)
-      {
-         _bike = GameObject.Find("Bike(Clone)");
-         _bikeAnim = new BikeAnimator(_bike);
-      }
-
-      if (_bikeTransform == null)
-      {
-         _bikeTransform = _bike.GetComponent<Transform>();
-      }
-   }
-
-   
    #region --- Recording ---
 
    private void StartRecording()
    {
-      GatherGameObjects();
       _recording = new DownhillRecording(_state.ActiveMapName);
       _recording.Record();
       _timer = 0;
-      _samplingLimit = 0; //1f / _cfg.ReplayMode.RecordFrequency.Value;
+      _samplingThreshold = 1f / _cfg.ReplayMode.RecordFrequency.Value;
       _state.ReplayOperatingMode = ReplayOperatingMode.Recording;
-      _logger.LogDebug("Replay recording started.");
+      Log.LogDebug("Recording started");
+      Log.LogDebug("Sampling Threshold: " + _samplingThreshold);
    }
 
 
@@ -93,7 +75,7 @@ internal class ReplayControl
    {
       _state.ReplayOperatingMode = ReplayOperatingMode.None;
       _recording.Stop();
-      _logger.LogDebug("Replay recording stopped. Captured " + _recording.SnapshotCount + " snapshots");
+      Log.LogDebug("Recording stopped, captured " + _recording.SnapshotCount + " snapshots");
    }
 
 
@@ -102,10 +84,14 @@ internal class ReplayControl
       System.Diagnostics.Debug.Assert(_recording != null);
 
       _timer += Time.unscaledDeltaTime;
-      if (_timer >= _samplingLimit)
+      if (_timer >= _samplingThreshold)
       {
          _recording.Record(_state.TrackSectionId, _camera, _bikeAnim);
          _timer = 0;
+      }
+      else
+      {
+         _recording.TrackTimestamp();
       }
    }
 
@@ -116,7 +102,7 @@ internal class ReplayControl
       Directory.CreateDirectory(replaySaveFolder);
       string replaySavePath = Path.Combine(replaySaveFolder, _recording.MapName + ".lmdr");
       _recording.Save(replaySavePath);
-      _logger.LogDebug($"Recording saved to '{replaySavePath}'; snapshots: {_recording.SnapshotCount}");
+      Log.LogDebug($"Recording saved to '{replaySavePath}'; snapshots: {_recording.SnapshotCount}");
    }
 
    #endregion --- Recording ---
@@ -132,27 +118,19 @@ internal class ReplayControl
 
    private void StartPlayback(ReplayPlaybackMode playbackMode)
    {
-      GatherGameObjects();
-      
       if (!IsLoaded)
       {
-         LoadAndPlayReplay(playbackMode);
+         LoadAndPlayback(playbackMode);
          return;
       }
       
-      CreateReplayBike();
-      if (playbackMode == ReplayPlaybackMode.Real)
-      {
-         // hide player bike, replay does not work with it
-         _bike.active = false;
-      }
-
-      var bikeAnim = new BikeAnimator(_replayBike);
-      _replay = new DownhillReplay(_recording, playbackMode, _camera, bikeAnim);
-      _replay.Play(); // TODO section tracking not working yet _state.TrackSectionId); // play from checkpoint the player passed / is currently at
       _state.ReplayOperatingMode = ReplayOperatingMode.Playback;
       _state.PlaybackMode = playbackMode;
-      _logger.LogDebug("Replay started. Playing " + _recording.SnapshotCount + " frames.");
+      
+      _replay = new DownhillReplay(_recording, _camera);
+      _replay.Play(playbackMode); // TODO section tracking not working yet _state.TrackSectionId); // play from checkpoint the player passed / is currently at
+
+      Log.LogDebug("Replay started. Playing " + _recording.SnapshotCount + " frames.");
    }
 
 
@@ -160,27 +138,10 @@ internal class ReplayControl
    {
       _replay.Stop();
       _state.ReplayOperatingMode = ReplayOperatingMode.None;
-      DestroyReplayBike();
-      _bike.active = true; // enable player bike
-      _logger.LogDebug("Replay stopped");
+      Log.LogDebug("Replay stopped");
    }
 
-
-   private void CreateReplayBike()
-   {
-      _replayBike = GameObject.Instantiate(_bikeTransform.gameObject);
-      // GameObject.Destroy(_replayBike.GetComponent<BikeLocomotion>());
-      // GameObject.Destroy(_replayBike.GetComponent<PlayerCameraTarget>());
-      // GameObject.Destroy(_replayBike.GetComponent<Stamina>());
-   }
-
-
-   private void DestroyReplayBike()
-   {
-      GameObject.Destroy(_replayBike);
-   }
-
-
+   
    private void PlayNextSnapshot()
    {
       if (_replay.PrepareNext())
@@ -192,8 +153,7 @@ internal class ReplayControl
          StopPlayback();
       }
    }
-  
-
+   
 
    private DownhillRecording LoadFromFile(string fileName)
    {
@@ -216,24 +176,22 @@ internal class ReplayControl
    #region --- Operation ---
    
 
-   public void LoadAndPlayReplay(ReplayPlaybackMode playbackMode)
+   public void LoadAndPlayback(ReplayPlaybackMode playbackMode)
    {
       if (_state.ReplayOperatingMode == ReplayOperatingMode.Recording)
       {
          return;
       }
 
-      GatherGameObjects();
       if (_state.IsMapLoaded)
       {
          try
          {
-            _recording = LoadFromFile(_state.ActiveMapName);
-            _logger.LogDebug($"Replay loaded: '{_recording.FilePath}'; Snapshots: {_recording.SnapshotCount}");
+            LoadRecording();
          }
          catch (Exception e)
          {
-            _logger.LogError(e.Message);
+            Log.LogError(e.Message);
             return;
          }
 
@@ -274,12 +232,29 @@ internal class ReplayControl
    }
 
    
+
+   public void LoadRecording()
+   {
+      if (_recording != null && _recording.IsRecording)
+      {
+         return;
+      }
+
+      _recording = LoadFromFile(_state.ActiveMapName);
+      if (_recording == null)
+      {
+         return;
+      }
+      Log.LogDebug($"Replay loaded: '{_recording.FilePath}'; Snapshots: {_recording.SnapshotCount}");
+   }
+
+
    public void SaveRecording()
    {
-      // if (_state.ReplayOperatingMode != ReplayOperatingMode.Recording)
-      // {
-      //    return;
-      // }
+      if (_recording == null)
+      {
+         return;
+      }
 
       StopRecording();
       SaveToFile();
@@ -333,10 +308,11 @@ internal class ReplayControl
 
    public void OnTrackFinished()
    {
-      if ((_cfg.ReplayMode.AutoStop.Value || _cfg.ReplayMode.AutoSave.Value) && _state.ReplayOperatingMode == ReplayOperatingMode.Recording)
+      if (_state.ReplayOperatingMode == ReplayOperatingMode.Recording)
       {
          StopRecording();
       }
+
       if (_cfg.ReplayMode.AutoSave.Value)
       {
          SaveRecording();
@@ -357,4 +333,5 @@ internal class ReplayControl
          StopRecording();
       }
    }
+
 }

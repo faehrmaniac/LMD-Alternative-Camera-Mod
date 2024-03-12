@@ -7,9 +7,10 @@ namespace AlternativeCameraMod;
 
 internal class InputHandler
 {
+   private static readonly Logger Log = LogProvider.GetLogger<InputHandler>();
+
    private readonly Configuration _cfg;
    private readonly LanguageConfig _lang;
-   private readonly Logger _logger;
 
    // General
    private float _moveHorizontal;
@@ -55,11 +56,10 @@ internal class InputHandler
    private bool _escapeKeyDown;
 
 
-   public InputHandler(Configuration cfg, LanguageConfig lang, Logger logger)
+   public InputHandler(Configuration cfg, LanguageConfig lang)
    {
       _cfg = cfg;
       _lang = lang;
-      _logger = logger;
       Cursor.lockState = CursorLockMode.None;
       PlayMode = new PlayModeInput(this, cfg, lang);
       PhotoMode = new PhotoModeInput(this, cfg, _lang);
@@ -240,16 +240,16 @@ internal class InputHandler
                      Input.GetKeyDown(KeyCode.Joystick4Button9);
 
       // e.g. Xbox Controller
-      if (_buttonDown0) _logger.LogDebug("Button 0 down (A)"); // A
-      if (_buttonDown1) _logger.LogDebug("Button 1 down (B)"); // B
-      if (_buttonDown2) _logger.LogDebug("Button 2 down (X)"); // X
-      if (_buttonDown3) _logger.LogDebug("Button 3 down (Y)"); // Y
-      if (_buttonDown4) _logger.LogDebug("Button 4 down (LB)"); // left shoulder
-      if (_buttonDown5) _logger.LogDebug("Button 5 down (RB)"); // right shoulder
-      if (_buttonDown6) _logger.LogDebug("Button 6 down (SEL)"); // back/select
-      if (_buttonDown7) _logger.LogDebug("Button 7 down (START)"); // start
-      if (_buttonDown8) _logger.LogDebug("Button 8 down (LS)"); // left stick click
-      if (_buttonDown9) _logger.LogDebug("Button 9 down (RS)"); // right stick click
+      if (_buttonDown0) Log.LogDebug("Button 0 down (A)"); // A
+      if (_buttonDown1) Log.LogDebug("Button 1 down (B)"); // B
+      if (_buttonDown2) Log.LogDebug("Button 2 down (X)"); // X
+      if (_buttonDown3) Log.LogDebug("Button 3 down (Y)"); // Y
+      if (_buttonDown4) Log.LogDebug("Button 4 down (LB)"); // left shoulder
+      if (_buttonDown5) Log.LogDebug("Button 5 down (RB)"); // right shoulder
+      if (_buttonDown6) Log.LogDebug("Button 6 down (SEL)"); // back/select
+      if (_buttonDown7) Log.LogDebug("Button 7 down (START)"); // start
+      if (_buttonDown8) Log.LogDebug("Button 8 down (LS)"); // left stick click
+      if (_buttonDown9) Log.LogDebug("Button 9 down (RS)"); // right stick click
    }
 
 
@@ -276,27 +276,27 @@ internal class InputHandler
       {
          case ControllerButton.X:
             pressed = _buttonDown2;
-            _logger.LogDebug(pressed, "Controller X");
+            Log.LogDebug(pressed, "Controller X");
             break;
          case ControllerButton.Y:
             pressed = _buttonDown3;
-            _logger.LogDebug(pressed, "Controller Y");
+            Log.LogDebug(pressed, "Controller Y");
             break;
          case ControllerButton.LB:
             pressed = _buttonDown4;
-            _logger.LogDebug(pressed, "Controller LB");
+            Log.LogDebug(pressed, "Controller LB");
             break;
          case ControllerButton.RB:
             pressed = _buttonDown5;
-            _logger.LogDebug(pressed, "Controller RB");
+            Log.LogDebug(pressed, "Controller RB");
             break;
          case ControllerButton.LStick:
             pressed = _buttonDown8;
-            _logger.LogDebug(pressed, "Controller LStick");
+            Log.LogDebug(pressed, "Controller LStick");
             break;
          case ControllerButton.RStick:
             pressed = _buttonDown9;
-            _logger.LogDebug(pressed, "Controller RStick");
+            Log.LogDebug(pressed, "Controller RStick");
             break;
       }
 

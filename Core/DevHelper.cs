@@ -8,6 +8,8 @@ namespace AlternativeCameraMod;
 
 internal class DevHelper
 {
+   private static readonly Logger Log = LogProvider.GetLogger<DevHelper>();
+
    private readonly State _state;
    private readonly InputHandler _input;
    private readonly CameraControl _camera;

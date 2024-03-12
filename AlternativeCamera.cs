@@ -7,7 +7,7 @@ using AlternativeCameraMod.Language;
 
 
 [assembly: MelonInfo(typeof(AlternativeCamera), "Alternative Camera with Photo Mode", AlternativeCamera.MOD_VERSION, "DevdudeX")]
-[assembly: MelonGame()]
+[assembly: MelonGame("Megagon Industries", "Lonely Mountains: Downhill")]
 
 
 namespace AlternativeCameraMod;
@@ -17,8 +17,9 @@ namespace AlternativeCameraMod;
 /// </summary>
 public class AlternativeCamera : MelonMod
 {
+   private static readonly Logger Log = LogProvider.GetLogger<AlternativeCamera>();
 #if DEBUG
-   private DevHelper _devHelper;
+   private DevHelper _devHelper = null!;
 #endif
    
    public const string MOD_VERSION = "3.0.0-alpha"; // also update in project build properties
@@ -27,11 +28,10 @@ public class AlternativeCamera : MelonMod
    private Configuration _cfg = null!;
    private LanguageConfig _lang = null!;
    private InputHandler _input = null!;
-   private Logger _logger = null!;
    private CameraControl _camera = null!;
    private Hud _hud = null!;
    private State _state = null!;
-   private ReplayControl _replay;
+   private ReplayControl _replay = null!;
 
 
    public override void OnEarlyInitializeMelon()
@@ -48,27 +48,23 @@ public class AlternativeCamera : MelonMod
       _cfg = Configuration.Create(initLang); // OS lang
       _cfg.Save();
 
-      _logger = new Logger(LoggerInstance);
-      _logger.Level = _cfg.Common.LogLevel.Value;
-#if DEBUG
-      _logger.Level = LogLevel.Debug;
-#endif
+      LogProvider.LogLevel = _cfg.Common.LogLevel.Value;
 
       _lang = LanguageConfig.Load(_cfg.Common.Language.Value);
-      _logger.LogInfo("Used Mod Language: {0}", _lang.LanguageCode);
+      Log.LogInfo("Used Mod Language: {0}", _lang.LanguageCode);
 
       if (CheckExistanceOfKnownConflictingMods())
       {
          return;
       }
 
-      _state = new State(_logger);
+      _state = new State();
       ValidateConfig();
 
-      _input = new InputHandler(_cfg, _lang, _logger);
-      _camera = new CameraControl(_state, _input, _cfg, _logger);
-      _hud = new Hud(_state, _camera, _input, _cfg, _lang, _logger);
-      _replay = new ReplayControl(_state, _camera, _input, _cfg, _lang, _logger);
+      _input = new InputHandler(_cfg, _lang);
+      _camera = new CameraControl(_state, _input, _cfg);
+      _hud = new Hud(_state, _camera, _input, _cfg, _lang);
+      _replay = new ReplayControl(_state, _camera, _input, _cfg, _lang);
       
 #if DEBUG
       _devHelper = new DevHelper(_state, _input, _camera, _hud, _lang, _cfg);
@@ -176,15 +172,12 @@ public class AlternativeCamera : MelonMod
       }
 
 #if DEBUG
-      if (_state.CurrentScreen == Screen.MainMenuScreen)
-      {
-         _devHelper.ProcessGameplayDevRequest();
-      }
+      _devHelper.ProcessGameplayDevRequest();
 #endif
 
       if (_state.NeedCameraReset)
       {
-         _logger.LogDebug("Resetting camera ...");
+         Log.LogDebug("Resetting camera ...");
          _camera.ApplyCameraModeOnEnterPlay();
          _state.ClearNeedCameraReset();
       }
@@ -193,7 +186,7 @@ public class AlternativeCamera : MelonMod
       _replay.Process();
       
       if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback
-          && _replay.PlaybackMode == ReplayPlaybackMode.Real)
+          && _replay.PlaybackMode == ReplayPlaybackMode.Watch)
       {
          return; // do not process game inputs, it runs playback
       }
@@ -281,7 +274,7 @@ public class AlternativeCamera : MelonMod
    {
       _state.SuspendOperation();
       _state.ErrorMessage = errMsg;
-      _logger.LogError(errMsg);
+      Log.LogError(errMsg);
    }
 
 
@@ -293,7 +286,7 @@ public class AlternativeCamera : MelonMod
       }
 
       _state.ErrorMessage = warnMsg;
-      _logger.LogError(warnMsg);
+      Log.LogError(warnMsg);
    }
 
 
@@ -493,12 +486,12 @@ public class AlternativeCamera : MelonMod
 
       if (_input.ReplayMode.ReplayGhost())
       {
-         _replay.TogglePlayback(ReplayPlaybackMode.Ghost);
+         _replay.TogglePlayback(ReplayPlaybackMode.GhostChallenge);
       }
       
       if (_input.ReplayMode.ReplayPlayer())
       {
-         _replay.TogglePlayback(ReplayPlaybackMode.Real);
+         _replay.TogglePlayback(ReplayPlaybackMode.Watch);
       }
 
       if (_input.ReplayMode.Stop())
@@ -513,7 +506,8 @@ public class AlternativeCamera : MelonMod
 
       if (_input.ReplayMode.Load())
       {
-         _replay.LoadAndPlayReplay(ReplayPlaybackMode.Real);
+         _replay.LoadRecording();
+         //_replay.LoadAndPlayback(ReplayPlaybackMode.Watch);
       }
    }
 }

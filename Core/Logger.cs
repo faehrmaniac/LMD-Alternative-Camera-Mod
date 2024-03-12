@@ -3,87 +3,122 @@
 
 namespace AlternativeCameraMod;
 
+internal static class LogProvider
+{
+   public static MelonLogger.Instance BaseLogger { get; } = new MelonLogger.Instance("AltCamMod");
+   public static LogLevel LogLevel { get; set; } =
+#if DEBUG
+      LogLevel.Debug;
+#else
+      LogLevel.Info;
+#endif
+
+
+   public static Logger GetLogger<T>()
+   {
+      var logger = new Logger(typeof(T));
+      logger.Level = LogLevel;
+#if DEBUG
+      logger.Level = LogLevel.Debug;
+#endif
+      return logger;
+   }
+}
+
+
 internal class Logger
 {
-   private readonly MelonLogger.Instance _loggerInstance;
+   private readonly Type _type;
 
-   
-   public Logger(MelonLogger.Instance loggerInstance)
+
+   public Logger(Type type)
    {
-      _loggerInstance = loggerInstance;
+      _type = type;
+   }
+
+
+   private MelonLogger.Instance BaseLogger
+   {
+      get { return LogProvider.BaseLogger; }
    }
 
 
    public LogLevel Level { get; set; }
 
 
+   private string FormatMsg(string msg)
+   {
+      return String.Format("[{0}] {1}", _type.Name, msg);
+   }
+
+
    public void LogVerbose(string msg, params object[] args)
    {
       if (Level < LogLevel.Verbose) return;
-      _loggerInstance.Msg(System.ConsoleColor.DarkMagenta, msg, args);
+      BaseLogger.Msg(System.ConsoleColor.DarkMagenta, FormatMsg(msg), args);
    }
 
-   
+
    public void LogVerbose(bool condition, string msg, params object[] args)
    {
       if (Level < LogLevel.Verbose || !condition) return;
-      _loggerInstance.Msg(System.ConsoleColor.DarkMagenta, msg, args);
+      BaseLogger.Msg(System.ConsoleColor.DarkMagenta, FormatMsg(msg), args);
    }
 
 
    public void LogDebug(string msg, params object[] args)
    {
       if (Level < LogLevel.Debug) return;
-      _loggerInstance.Msg(System.ConsoleColor.Magenta, msg, args);
+      BaseLogger.Msg(System.ConsoleColor.Magenta, FormatMsg(msg), args);
    }
 
-   
+
    public void LogDebug(bool condition, string msg, params object[] args)
    {
       if (Level < LogLevel.Debug || !condition) return;
-      _loggerInstance.Msg(System.ConsoleColor.Magenta, msg, args);
+      BaseLogger.Msg(System.ConsoleColor.Magenta, FormatMsg(msg), args);
    }
 
-   
+
    public void LogInfo(string msg, params object[] args)
    {
       if (Level < LogLevel.Info) return;
-      _loggerInstance.Msg(msg, args);
+      BaseLogger.Msg(FormatMsg(msg), args);
    }
 
-   
+
    public void LogInfo(bool condition, string msg, params object[] args)
    {
       if (Level < LogLevel.Info || !condition) return;
-      _loggerInstance.Msg(msg, args);
+      BaseLogger.Msg(FormatMsg(msg), args);
    }
 
-   
+
    public void LogWarning(string msg, params object[] args)
    {
       if (Level < LogLevel.Warning) return;
-      _loggerInstance.Warning(msg, args);
+      BaseLogger.Warning(FormatMsg(msg), args);
    }
 
-   
+
    public void LogWarning(bool condition, string msg, params object[] args)
    {
       if (Level < LogLevel.Warning || !condition) return;
-      _loggerInstance.Warning(msg, args);
+      BaseLogger.Warning(FormatMsg(msg), args);
    }
 
 
    public void LogError(string msg, params object[] args)
    {
       if (Level < LogLevel.Error) return;
-      _loggerInstance.Error(msg, args);
+      BaseLogger.Error(FormatMsg(msg), args);
    }
 
-   
+
    public void LogError(bool condition, string msg, params object[] args)
    {
       if (Level < LogLevel.Error || !condition) return;
-      _loggerInstance.Error(msg, args);
+      BaseLogger.Error(FormatMsg(msg), args);
    }
 
 
@@ -92,16 +127,16 @@ internal class Logger
       if (Level < level) return;
       switch (level)
       {
-         case LogLevel.Debug: 
+         case LogLevel.Debug:
             LogDebug(msg, args);
             break;
-         case LogLevel.Info: 
+         case LogLevel.Info:
             LogInfo(msg, args);
             break;
-         case LogLevel.Warning: 
+         case LogLevel.Warning:
             LogWarning(msg, args);
             break;
-         case LogLevel.Error: 
+         case LogLevel.Error:
             LogError(msg, args);
             break;
       }

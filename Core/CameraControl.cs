@@ -2,6 +2,8 @@
 using AlternativeCameraMod.Config;
 using Il2CppMegagon.Downhill.Audio;
 using Il2CppMegagon.Downhill.Cameras;
+using Il2CppMegagon.Downhill.Players;
+using Il2CppMegagon.Downhill.Vehicle.Controller;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 
@@ -10,9 +12,10 @@ namespace AlternativeCameraMod;
 
 internal class CameraControl
 {
+   private static readonly Logger Log = LogProvider.GetLogger<CameraControl>();
+
    private readonly State _state;
    private readonly InputHandler _input;
-   private readonly Logger _logger;
    private readonly Configuration _cfg;
 
    // Transforms and GameObjects
@@ -98,17 +101,11 @@ internal class CameraControl
       public Vector3 LocalEulerAngles;
 
 
-      private static bool EqualsFloat(float a, float b)
-      {
-         return (b > a - 1E-12) && (b < a + 1E-12);
-      }
-
-
       public bool Matches(CamPos otherPos)
       {
-         if (!EqualsFloat(RotationHorizontal, otherPos.RotationHorizontal)) return false;
-         if (!EqualsFloat(RotationVertical, otherPos.RotationVertical)) return false;
-         if (!EqualsFloat(RotationRoll, otherPos.RotationRoll)) return false;
+         if (!Utils.EqualsFloat(RotationHorizontal, otherPos.RotationHorizontal)) return false;
+         if (!Utils.EqualsFloat(RotationVertical, otherPos.RotationVertical)) return false;
+         if (!Utils.EqualsFloat(RotationRoll, otherPos.RotationRoll)) return false;
          if (!Position.Equals(otherPos.Position)) return false;
          if (!EulerAngles.Equals(otherPos.EulerAngles)) return false;
          if (!LocalEulerAngles.Equals(otherPos.LocalEulerAngles)) return false;
@@ -117,11 +114,10 @@ internal class CameraControl
    }
 
 
-   public CameraControl(State state, InputHandler input, Configuration cfg, Logger logger)
+   public CameraControl(State state, InputHandler input, Configuration cfg)
    {
       _state = state;
       _input = input;
-      _logger = logger;
       _cfg = cfg;
 
       _camAutoAlign = _cfg.Camera.AlignmentMode.Value == CameraAlignmentMode.Auto;
@@ -192,10 +188,10 @@ internal class CameraControl
          return false;
       }
 
-      _logger.LogInfo("Starting alternative camera system ...");
+      Log.LogInfo("Starting alternative camera system ...");
 
       // Get intial cam position
-      _logger.LogInfo("MainCam, FoV {0}, NCP {1}", _mainCamera.fieldOfView, _mainCamera.nearClipPlane);
+      Log.LogInfo("MainCam, FoV {0}, NCP {1}", _mainCamera.fieldOfView, _mainCamera.nearClipPlane);
 
       _currentCamView = _cfg.Camera.InitialMode.Value;
       _altCamStateView = _cfg.Camera.InitialMode.Value;
@@ -219,7 +215,7 @@ internal class CameraControl
          _baseFocusDistance = _depthOfFieldSettings.focusDistance.GetValue<float>();
          _depthOfFieldSettings.focalLength.Override((float)Math.Round(_depthOfFieldSettings.focalLength.GetValue<float>())); // round it initially
          _baseFocalLength = _depthOfFieldSettings.focalLength.GetValue<float>();
-         _logger.LogInfo("DoF: " + _baseFocalLength);
+         Log.LogInfo("DoF: " + _baseFocalLength);
          _appliedFocalLength = _cfg.Camera.FocalLength.Value;
       }
 
@@ -256,7 +252,7 @@ internal class CameraControl
       }
 
       _bikeTransform = target.GetComponent<Transform>();
-
+      
       var cam = GameObject.Find("PlayCamera(Clone)");
       if (cam == null)
       {
@@ -305,12 +301,12 @@ internal class CameraControl
          if (_input.PlayMode.AdjustFocalLength() && _appliedFocalLength > 0)
          {
             _appliedFocalLength--;
-            _logger.LogDebug("FocalLength " + _appliedFocalLength);
+            Log.LogDebug("FocalLength " + _appliedFocalLength);
          }
          else if (_input.PlayMode.AdjustFocusDistance())
          {
             _cfg.Camera.FocusDistanceOffset.Value++;
-            _logger.LogDebug("FocusDistanceOffset " + _cfg.Camera.FocusDistanceOffset.Value);
+            Log.LogDebug("FocusDistanceOffset " + _cfg.Camera.FocusDistanceOffset.Value);
          }
          else
          {
@@ -323,12 +319,12 @@ internal class CameraControl
          if (_input.PlayMode.AdjustFocalLength())
          {
             _appliedFocalLength++;
-            _logger.LogDebug("FocalLength " + _appliedFocalLength);
+            Log.LogDebug("FocalLength " + _appliedFocalLength);
          }
          else if (_input.PlayMode.AdjustFocusDistance() && _cfg.Camera.FocusDistanceOffset.Value > 0)
          {
             _cfg.Camera.FocusDistanceOffset.Value--;
-            _logger.LogDebug("FocusDistanceOffset " + _cfg.Camera.FocusDistanceOffset.Value);
+            Log.LogDebug("FocusDistanceOffset " + _cfg.Camera.FocusDistanceOffset.Value);
          }
          else
          {
@@ -634,7 +630,7 @@ internal class CameraControl
 
    public void ToggleCamState()
    {
-      _logger.LogDebug("Toggle Cam State");
+      Log.LogDebug("Toggle Cam State");
       if (_currentCamView == CameraView.Original)
       {
          ApplyCameraMode(_altCamStateView);
@@ -763,7 +759,7 @@ internal class CameraControl
             hud.ToggleHudVisiblity(false);
          }
 
-         _logger.LogInfo("Enter photo mode");
+         Log.LogInfo("Enter photo mode");
          _photoModeBaseTimeScale = Time.timeScale; // Save the original time scale before freezing
          Time.timeScale = 0;
 
@@ -793,7 +789,7 @@ internal class CameraControl
          SaveCamPos(_camPosPhoto);
 
          Mode = CameraMode.BikeCam;
-         _logger.LogInfo("Exit photo mode");
+         Log.LogInfo("Exit photo mode");
 
          Time.timeScale = _photoModeBaseTimeScale; // Reset the time scale to what it was before we froze the time
          _mainCamera.fieldOfView = _baseFoVPhotoMode; // Restore the original FoV
@@ -866,7 +862,7 @@ internal class CameraControl
                break;
          }
 
-         _logger.LogDebug("Focus Adjust Mode: " + _focusAdjustMode);
+         Log.LogDebug("Focus Adjust Mode: " + _focusAdjustMode);
       }
    }
 
@@ -974,7 +970,7 @@ internal class CameraControl
       catch (Exception ex)
       {
          ScreenshotResult = new ScreenshotResult(null, ex.Message);
-         _logger.LogError("Screenshot save error: {0}", ex.Message);
+         Log.LogError("Screenshot save error: {0}", ex.Message);
       }
    }
 
@@ -1042,7 +1038,7 @@ internal class CameraControl
 
    private void ApplyOriginalCam()
    {
-      _logger.LogInfo("Original camera");
+      Log.LogInfo("Original camera");
       _currentCamView = CameraView.Original;
       EnableDefaultCamera();
       ApplyIsometricCameraSettings();
@@ -1065,7 +1061,7 @@ internal class CameraControl
          .gameObject.GetComponent<SkinnedMeshRenderer>();
       bikeMeshRenderer.updateWhenOffscreen = true;
       ApplyCommonCameraSettings();
-      _logger.LogInfo("First person camera");
+      Log.LogInfo("First person camera");
       AlignViewWithBike();
    }
 
@@ -1079,7 +1075,7 @@ internal class CameraControl
 
    private void ApplyThirdPersonCam()
    {
-      _logger.LogInfo("Third person camera");
+      Log.LogInfo("Third person camera");
       _currentCamView = CameraView.ThirdPerson;
       ApplyCameraSettings(_cfg.Camera.ThirdPersionInitialFollowDistance.Value,
          new Vector3(0f, 2.4f, 0f),
@@ -1210,13 +1206,13 @@ internal class CameraControl
          //_bikeTransform.position = new Vector3(_bikeTransform.position.x, _bikeTransform.position.y, _bikeTransform.position.z+1);
          _defaultPlayCamera.enabled = !_defaultPlayCamera.enabled;
          _lastBikePos = _bikeTransform.position;
-         _logger.LogDebug("Shake stuck bike");
+         Log.LogDebug("Shake stuck bike");
          return false;
       }
       else
       {
          _defaultPlayCamera.enabled = _currentCamView == CameraView.Original;
-         _logger.LogDebug("Bike is freed");
+         Log.LogDebug("Bike is freed");
          return true;
       }
    }

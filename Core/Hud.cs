@@ -1,16 +1,16 @@
 ﻿using System.Text;
 using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
-using Il2Cpp;
 using MelonLoader;
 using UnityEngine;
-using static UnityEngine.Random;
 
 
 namespace AlternativeCameraMod;
 
 internal class Hud
 {
+   private static readonly Logger Log = LogProvider.GetLogger<Hud>();
+
    const string InstructionPrefix = " ► ";
    const string InstructionSeparator = " ├  ";
    const string InstructionSeparatorLast = " └  ";
@@ -20,7 +20,6 @@ internal class Hud
    private readonly InputHandler _input;
    private readonly Configuration _cfg;
    private readonly LanguageConfig _lang;
-   private readonly Logger _logger;
    private bool _hudInfoVisible = true;
    private readonly List<ModHudInfoPart> _hudInfoParts = new();
    private int _fpsDisplayThreshold;
@@ -31,14 +30,13 @@ internal class Hud
 
 
    public Hud(State state, CameraControl camera, InputHandler input, Configuration cfg,
-                     LanguageConfig lang, Logger logger)
+                     LanguageConfig lang)
    {
       _state = state;
       _camera = camera;
       _input = input;
       _cfg = cfg;
       _lang = lang;
-      _logger = logger;
    }
 
 
@@ -73,7 +71,7 @@ internal class Hud
          }
       }
 
-      _logger.LogVerbose("Screen: {0}", _state.CurrentScreen);
+      Log.LogVerbose("Screen: {0}", _state.CurrentScreen);
       switch (_state.CurrentScreen)
       {
          case Screen.None:
@@ -501,13 +499,13 @@ internal class Hud
 
       if (visible.HasValue)
       {
-         _logger.LogDebug("Init Game Hud: {0}", visible.Value);
+         Log.LogDebug("Init Game Hud: {0}", visible.Value);
          hud.enabled = visible.Value;
       }
       else
       {
          hud.enabled = !hud.enabled;
-         _logger.LogDebug("Toggle Game Hud: {0}", hud.enabled);
+         Log.LogDebug("Toggle Game Hud: {0}", hud.enabled);
       }
    }
 
@@ -637,7 +635,7 @@ internal class Hud
       {
          GUI.Box(new Rect(xOffset-padding, yOffset-padding, 180, 140), "");
 
-         string txt = (_state.PlaybackMode == ReplayPlaybackMode.Ghost ? "GHOST PLAY" : "PLAYBACK");
+         string txt = (_state.PlaybackMode == ReplayPlaybackMode.GhostChallenge ? "GHOST PLAY" : "PLAYBACK");
          var lbl = new Label(txt, 20, "yellow", "black", true);
          WriteLabel(lbl, xOffset, yOffset, 280, 30);
 

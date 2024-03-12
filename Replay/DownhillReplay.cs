@@ -5,10 +5,12 @@ namespace AlternativeCameraMod.Replay;
 
 internal class DownhillReplay
 {
+   private static readonly Logger Log = LogProvider.GetLogger<DownhillReplay>();
+
    private readonly DownhillRecording _recording;
-   private readonly ReplayPlaybackMode _playbackMode;
+   private ReplayPlaybackMode _playbackMode;
    private readonly CameraControl _camera;
-   private readonly BikeAnimator _bike;
+   private ReplayBike _bike;
    private float _timePos;
    private int _index1;
    private int _index2;
@@ -18,20 +20,42 @@ internal class DownhillReplay
    private bool _playing;
 
 
-   public DownhillReplay(DownhillRecording recording, ReplayPlaybackMode playbackMode, CameraControl camera,
-      BikeAnimator bike)
+   public DownhillReplay(DownhillRecording recording, CameraControl camera)
    {
       _recording = recording;
-      _playbackMode = playbackMode;
-      _bike = bike;
       _camera = camera;
    }
 
-
-   public void Play(int startAtSectionId = 0)
+   
+   public void Play(ReplayPlaybackMode playbackMode, int startAtSectionId = 0)
    {
+      _playbackMode = playbackMode;
+
+      if (_playing)
+      {
+         // just change the mode 
+         return;
+      }
+
+      _bike = ReplayBike.Playback();
+
+      // need another bike instance since the real bike crashes a lot
+      if (playbackMode == ReplayPlaybackMode.GhostChallenge)
+      {
+         // show player bike for playing against the ghost
+         _bike.ShowPlayer();
+      }
+
       _sectionId = startAtSectionId;
-      _timePos = _recording.Sections[_sectionId].Snapshots[0].Timestamp;
+      if (_sectionId == 0)
+      {
+         _timePos = 0;
+      }
+      else if (_sectionId > 0)
+      {
+         _timePos = _recording.Sections[_sectionId-1].Snapshots.Last().Timestamp;
+      }
+
       _index1 = 0;
       _index2 = 0;
 
@@ -48,6 +72,13 @@ internal class DownhillReplay
 
    public void Stop()
    {
+      if (!_playing)
+      {
+         return;
+      }
+
+      _bike.Close();
+      
       _index1 = 0;
       _index2 = 0;
       _playing = false;
@@ -91,8 +122,7 @@ internal class DownhillReplay
       {
          var frame = _playList[i];
 
-#warning is this compare really working as intended?
-         if (frame.Timestamp == _timePos)
+         if (Utils.EqualsFloat(frame.Timestamp, _timePos))
          {
             _index1 = i;
             _index2 = i;
@@ -121,33 +151,33 @@ internal class DownhillReplay
       {
          s1 = _playList[_index1];
          s2 = s1;
-         interpolationFactor = 0; //unused
+         interpolationFactor = 1; //unused
       }
       else
       {
          s1 = _playList[_index1];
          s2 = _playList[_index2];
          interpolationFactor = (_timePos - s1.Timestamp) / (s2.Timestamp - s1.Timestamp);
+         Log.LogDebug("Replay Interp: " + interpolationFactor);
       }
 
       _sectionId = s1.SectionId;
 
-      _bike.ApplyState(s1, s2, interpolationFactor);
+      _bike.Reanimator.ApplyState(s1, s2, interpolationFactor);
       
-      if (_playbackMode == ReplayPlaybackMode.Real)
+      if (_playbackMode == ReplayPlaybackMode.Watch)
       {
          // when real playback, the camera must follow
          // otherwise the player runs with the ghost
-
-         RecreatePosition(ReplayPart.Camera, s1, s2, interpolationFactor);
+         RecreateCameraPosition(s1, s2, interpolationFactor);
       }
    }
 
 
-   private void RecreatePosition(ReplayPart part, Snapshot s1, Snapshot s2, float interpolationFactor)
+   private void RecreateCameraPosition(Snapshot s1, Snapshot s2, float interpolationFactor)
    {
-      var pos1 = s1.Locations[(int)part].Item2;
-      var rot1 = s1.Locations[(int)part].Item3;
+      var pos1 = s1.Locations[0].Item2;
+      var rot1 = s1.Locations[0].Item3;
       if (interpolationFactor < 0)
       {
          _camera.Position = pos1;
@@ -155,8 +185,8 @@ internal class DownhillReplay
       }
       else
       {
-         var pos2 = s2.Locations[(int)ReplayPart.Camera].Item2;
-         var rot2 = s2.Locations[(int)ReplayPart.Camera].Item3;
+         var pos2 = s2.Locations[0].Item2;
+         var rot2 = s2.Locations[0].Item3;
          _camera.Position = Vector3.Lerp(pos1, pos2, interpolationFactor);
          _camera.Rotation = Quaternion.Slerp(rot1, rot2, interpolationFactor);
       }

@@ -139,6 +139,6 @@ internal enum ReplayOperatingMode
 
 public enum ReplayPlaybackMode
 {
-   Ghost,
-   Real
+   GhostChallenge,
+   Watch
 }

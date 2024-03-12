@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace AlternativeCameraMod;
 
-enum TriggerEvent
+internal enum TriggerEvent
 {
    Start,
    Checkpoint,
