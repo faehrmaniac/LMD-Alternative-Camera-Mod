@@ -3,6 +3,7 @@ using Il2CppMegagon.Downhill.Vehicle.Controller;
 using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
 using AlternativeCameraMod.Replay;
+using Il2CppMegagon.Downhill.Vehicle.Animation;
 using UnityEngine;
 
 
@@ -24,6 +25,8 @@ internal class ReplayControl
    private float _timer;
    private DownhillRecording _recording;
    private DownhillReplay _replay;
+   private BikeAnimator _bikeAnim;
+   private float _samplingLimit;
 
 
    public ReplayControl(State state, CameraControl camera, InputHandler input, Configuration cfg,
@@ -62,6 +65,7 @@ internal class ReplayControl
       if (_bike == null)
       {
          _bike = GameObject.Find("Bike(Clone)");
+         _bikeAnim = new BikeAnimator(_bike);
       }
 
       if (_bikeTransform == null)
@@ -79,6 +83,7 @@ internal class ReplayControl
       _recording = new DownhillRecording(_state.ActiveMapName);
       _recording.Record();
       _timer = 0;
+      _samplingLimit = 0; //1f / _cfg.ReplayMode.RecordFrequency.Value;
       _state.ReplayOperatingMode = ReplayOperatingMode.Recording;
       _logger.LogDebug("Replay recording started.");
    }
@@ -97,9 +102,9 @@ internal class ReplayControl
       System.Diagnostics.Debug.Assert(_recording != null);
 
       _timer += Time.unscaledDeltaTime;
-      if (_timer >= 1 / _cfg.ReplayMode.RecordFrequency.Value)
+      if (_timer >= _samplingLimit)
       {
-         _recording.Record(_state.TrackSectionId, _bikeTransform, _camera);
+         _recording.Record(_state.TrackSectionId, _camera, _bikeAnim);
          _timer = 0;
       }
    }
@@ -141,9 +146,10 @@ internal class ReplayControl
          // hide player bike, replay does not work with it
          _bike.active = false;
       }
-      
-      _replay = new DownhillReplay(_recording, playbackMode, _replayBike.transform, _camera);
-      _replay.Play(_state.TrackSectionId); // play from checkpoint the player passed / is currently at
+
+      var bikeAnim = new BikeAnimator(_replayBike);
+      _replay = new DownhillReplay(_recording, playbackMode, _camera, bikeAnim);
+      _replay.Play(); // TODO section tracking not working yet _state.TrackSectionId); // play from checkpoint the player passed / is currently at
       _state.ReplayOperatingMode = ReplayOperatingMode.Playback;
       _state.PlaybackMode = playbackMode;
       _logger.LogDebug("Replay started. Playing " + _recording.SnapshotCount + " frames.");
@@ -163,7 +169,7 @@ internal class ReplayControl
    private void CreateReplayBike()
    {
       _replayBike = GameObject.Instantiate(_bikeTransform.gameObject);
-      GameObject.Destroy(_replayBike.GetComponent<BikeLocomotion>());
+      // GameObject.Destroy(_replayBike.GetComponent<BikeLocomotion>());
       // GameObject.Destroy(_replayBike.GetComponent<PlayerCameraTarget>());
       // GameObject.Destroy(_replayBike.GetComponent<Stamina>());
    }
@@ -270,10 +276,10 @@ internal class ReplayControl
    
    public void SaveRecording()
    {
-      if (_state.ReplayOperatingMode != ReplayOperatingMode.Recording)
-      {
-         return;
-      }
+      // if (_state.ReplayOperatingMode != ReplayOperatingMode.Recording)
+      // {
+      //    return;
+      // }
 
       StopRecording();
       SaveToFile();

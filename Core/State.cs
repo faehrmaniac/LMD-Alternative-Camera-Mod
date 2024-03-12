@@ -332,6 +332,7 @@ internal class State
          _logger.LogDebug("Scene {0} loaded", sceneName);
          _activeMapName = sceneName;
          _levelState = LevelState.WaitForStart;
+         _trackSectionId = 0;
          InstallTriggers();
       }
    }

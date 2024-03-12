@@ -7,8 +7,8 @@ internal class DownhillReplay
 {
    private readonly DownhillRecording _recording;
    private readonly ReplayPlaybackMode _playbackMode;
-   private readonly Transform? _bike;
    private readonly CameraControl _camera;
+   private readonly BikeAnimator _bike;
    private float _timePos;
    private int _index1;
    private int _index2;
@@ -18,15 +18,16 @@ internal class DownhillReplay
    private bool _playing;
 
 
-   public DownhillReplay(DownhillRecording recording, ReplayPlaybackMode playbackMode, Transform? bike, CameraControl camera)
+   public DownhillReplay(DownhillRecording recording, ReplayPlaybackMode playbackMode, CameraControl camera,
+      BikeAnimator bike)
    {
       _recording = recording;
       _playbackMode = playbackMode;
       _bike = bike;
       _camera = camera;
    }
-   
-   
+
+
    public void Play(int startAtSectionId = 0)
    {
       _sectionId = startAtSectionId;
@@ -77,13 +78,13 @@ internal class DownhillReplay
       {
          return false;
       }
-      
+
       _timePos += Time.unscaledDeltaTime;
       UpdatePlaybackPosition();
       return true;
    }
 
-   
+
    private void UpdatePlaybackPosition()
    {
       for (int i = 0; i < _playCount - 2; i++)
@@ -91,14 +92,14 @@ internal class DownhillReplay
          var frame = _playList[i];
 
 #warning is this compare really working as intended?
-         if (frame.Timestamp == _timePos) 
+         if (frame.Timestamp == _timePos)
          {
             _index1 = i;
             _index2 = i;
             return;
          }
-         
-         var frame1 = _playList[i+1];
+
+         var frame1 = _playList[i + 1];
          if (frame.Timestamp < _timePos & _timePos < frame1.Timestamp)
          {
             _index1 = i;
@@ -110,7 +111,7 @@ internal class DownhillReplay
       _index1 = _playCount - 1;
       _index2 = _playCount - 1;
    }
-   
+
 
    public void ApplyState()
    {
@@ -131,46 +132,33 @@ internal class DownhillReplay
 
       _sectionId = s1.SectionId;
 
-      SetBikePosition(s1, s2, interpolationFactor);
-
+      _bike.ApplyState(s1, s2, interpolationFactor);
+      
       if (_playbackMode == ReplayPlaybackMode.Real)
       {
          // when real playback, the camera must follow
          // otherwise the player runs with the ghost
-        
-         SetCameraPosition(s1, s2, interpolationFactor);
+
+         RecreatePosition(ReplayPart.Camera, s1, s2, interpolationFactor);
       }
    }
 
 
-   private void SetCameraPosition(Snapshot s1, Snapshot s2, float interpolationFactor)
+   private void RecreatePosition(ReplayPart part, Snapshot s1, Snapshot s2, float interpolationFactor)
    {
+      var pos1 = s1.Locations[(int)part].Item2;
+      var rot1 = s1.Locations[(int)part].Item3;
       if (interpolationFactor < 0)
       {
-         _camera.Position = s1.CamPosition;
-         _camera.Rotation = s1.CamRotation;
+         _camera.Position = pos1;
+         _camera.Rotation = rot1;
       }
       else
       {
-         _camera.Position = Vector3.Lerp(s1.CamPosition, s2.CamPosition, interpolationFactor);
-         _camera.Rotation = Quaternion.Slerp(s1.CamRotation, s2.CamRotation, interpolationFactor);
-      }
-   }
-
-
-   private void SetBikePosition(Snapshot s1, Snapshot s2, float interpolationFactor)
-   {
-      if (interpolationFactor < 0)
-      {
-         _bike.position = s1.BikePosition;
-         _bike.rotation = s1.BikeRotation;
-         //_bike.eulerAngles = s1.BikeEulerAngles;
-      }
-      else
-      {
-         _bike.position = Vector3.Lerp(s1.BikePosition, s2.BikePosition, interpolationFactor);
-         _bike.rotation = Quaternion.Slerp(s1.BikeRotation, s2.BikeRotation, interpolationFactor);
-         //_bike.eulerAngles = Vector3.Lerp(s1.BikeEulerAngles, s2.BikeEulerAngles, interpolationFactor);
+         var pos2 = s2.Locations[(int)ReplayPart.Camera].Item2;
+         var rot2 = s2.Locations[(int)ReplayPart.Camera].Item3;
+         _camera.Position = Vector3.Lerp(pos1, pos2, interpolationFactor);
+         _camera.Rotation = Quaternion.Slerp(rot1, rot2, interpolationFactor);
       }
    }
 }

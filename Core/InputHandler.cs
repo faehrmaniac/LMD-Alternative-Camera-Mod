@@ -831,7 +831,7 @@ internal class InputHandler
 
       public bool Record()
       {
-         return _ih.KeyDown(KeyCode.F1) || (_ih.PlayMode.BikeMoved() && _ih._buttonHold0);
+         return _ih.KeyDown(KeyCode.F1);
       }
 
 
