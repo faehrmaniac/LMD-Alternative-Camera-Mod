@@ -17,10 +17,12 @@ namespace AlternativeCameraMod;
 /// </summary>
 public class AlternativeCamera : MelonMod
 {
-   public const string MOD_VERSION = "2.1.0"; // also update in project build properties
+#if DEBUG
+   private DevHelper _devHelper;
+#endif
+   
+   public const string MOD_VERSION = "3.0.0-alpha"; // also update in project build properties
 
-   // private bool _modInitialized;
-   // private bool _modInitializing;
    private bool _firstPlayFrame;
    private Configuration _cfg = null!;
    private LanguageConfig _lang = null!;
@@ -29,9 +31,7 @@ public class AlternativeCamera : MelonMod
    private CameraControl _camera = null!;
    private Hud _hud = null!;
    private State _state = null!;
-#if DEBUG
-   private DevHelper _devHelper;
-#endif
+   private ReplayControl _replay;
 
 
    public override void OnEarlyInitializeMelon()
@@ -68,7 +68,8 @@ public class AlternativeCamera : MelonMod
       _input = new InputHandler(_cfg, _lang, _logger);
       _camera = new CameraControl(_state, _input, _cfg, _logger);
       _hud = new Hud(_state, _camera, _input, _cfg, _lang, _logger);
-
+      _replay = new ReplayControl(_state, _camera, _input, _cfg, _lang, _logger);
+      
 #if DEBUG
       _devHelper = new DevHelper(_state, _input, _camera, _hud, _lang, _cfg);
 #endif
@@ -78,6 +79,13 @@ public class AlternativeCamera : MelonMod
    public override void OnLateInitializeMelon()
    {
       base.OnLateInitializeMelon();
+   }
+
+
+   public override void OnSceneWasLoaded(int buildIndex, string sceneName)
+   {
+      base.OnSceneWasLoaded(buildIndex, sceneName);
+      _state.OnSceneLoaded(sceneName);
    }
 
 
@@ -102,10 +110,11 @@ public class AlternativeCamera : MelonMod
       {
          return;
       }
+   
       _input.OnUpdate();
    }
 
-
+   
    public override void OnLateUpdate()
    {
       _state.TrackScreenState();
@@ -130,62 +139,90 @@ public class AlternativeCamera : MelonMod
 
       if (_state.IsMenuOpen)
       {
-         _input.EnableMouseCursorOnDemand(_state.Fps);
-         if (_state.CurrentScreen == Screen.PauseScreen)
-         {
-            if (_input.PlayMode.ShowInstructions)
-            {
-               _cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value = !_cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value;
-            }
-         }
-
-#if DEBUG
-         if (_state.CurrentScreen == Screen.MainMenuScreen)
-         {
-            _devHelper.ProcessDevRequest();
-         }
-#endif
+         ProcessMenuState();
       }
-      else // gameplay
+      else
       {
-         if (!_camera.InitializeOnce())
-         {
-            return;
-         }
-
-         if (_state.NeedCameraReset)
-         {
-            _logger.LogDebug("Resetting camera ...");
-            _camera.ApplyCameraModeOnEnterPlay();
-            _state.ClearNeedCameraReset();
-         }
-
-         if (_state.CameraMode == CameraMode.BikeCam)
-         {
-            if (HandleBikeModeUserInputs())
-            {
-               _camera.ProcessBikeMode();
-            }
-         }
-         else if (_state.CameraMode == CameraMode.PhotoCam)
-         {
-            if (HandlePhotoModeUserInputs())
-            {
-               _camera.ProcessPhotoMode();
-            }
-         }
-
-         if (_firstPlayFrame)
-         {
-            _hud.ToggleHudVisiblity(_cfg.PlayMode.GameHudVisible.Value);
-         }
-
-         HandleCommonUserInputs();
-         _firstPlayFrame = false;
+         ProcessGameplayState();
       }
    }
 
 
+   private void ProcessMenuState()
+   {
+      _input.EnableMouseCursorOnDemand(_state.Fps);
+      if (_state.CurrentScreen == Screen.PauseScreen)
+      {
+         if (_input.PlayMode.ShowInstructions)
+         {
+            _cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value = !_cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value;
+         }
+      }
+
+#if DEBUG
+      if (_state.CurrentScreen == Screen.MainMenuScreen)
+      {
+         _devHelper.ProcessDevRequest();
+      }
+#endif
+   }
+
+
+   private void ProcessGameplayState()
+   {
+      if (!_camera.InitializeOnce())
+      {
+         return;
+      }
+
+#if DEBUG
+      if (_state.CurrentScreen == Screen.MainMenuScreen)
+      {
+         _devHelper.ProcessGameplayDevRequest();
+      }
+#endif
+
+      if (_state.NeedCameraReset)
+      {
+         _logger.LogDebug("Resetting camera ...");
+         _camera.ApplyCameraModeOnEnterPlay();
+         _state.ClearNeedCameraReset();
+      }
+
+      HandleReplayModeInputs();
+      _replay.Process();
+      
+      if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback
+          && _replay.PlaybackMode == ReplayPlaybackMode.Real)
+      {
+         return; // do not process game inputs, it runs playback
+      }
+
+      if (_state.CameraMode == CameraMode.BikeCam)
+      {
+         if (HandleBikeModeInputs())
+         {
+            _camera.ProcessBikeMode();
+         }
+      }
+      else if (_state.CameraMode == CameraMode.PhotoCam)
+      {
+         if (HandlePhotoModeInputs())
+         {
+            _camera.ProcessPhotoMode();
+         }
+      }
+
+      if (_firstPlayFrame)
+      {
+         _hud.ToggleHudVisiblity(_cfg.PlayMode.GameHudVisible.Value);
+      }
+
+      HandleCommonUserInputs();
+      _firstPlayFrame = false;
+   }
+   
+   
    private bool CheckExistanceOfKnownConflictingMods()
    {
       var folder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -309,8 +346,20 @@ public class AlternativeCamera : MelonMod
    }
 
 
-   private bool HandleBikeModeUserInputs()
+   private bool HandleBikeModeInputs()
    {
+      if (_input.PlayMode.BikeMoved())
+      {
+         _state.OnBikeMoved();
+         if (_state.HandleStuckBike)
+         {
+            if (_camera.FreeStuckBike())
+            {
+               _state.ResetHandleStuckBike();
+            }
+         }
+      }
+
       if (_input.PlayMode.SelectOriginalCamera())
       {
          if (_cfg.PlayMode.EnableToggleCamStateByOriginalCamKey.Value)
@@ -385,7 +434,7 @@ public class AlternativeCamera : MelonMod
    }
 
 
-   private bool HandlePhotoModeUserInputs()
+   private bool HandlePhotoModeInputs()
    {
       if (_input.Restart())
       {
@@ -432,5 +481,39 @@ public class AlternativeCamera : MelonMod
       }
 
       return _state.CameraMode == CameraMode.PhotoCam; // unchanged in phote mode
+   }
+
+
+   private void HandleReplayModeInputs()
+   {
+      if (_input.ReplayMode.Record())
+      {
+         _replay.ToggleRecording();
+      }
+
+      if (_input.ReplayMode.ReplayGhost())
+      {
+         _replay.TogglePlayback(ReplayPlaybackMode.Ghost);
+      }
+      
+      if (_input.ReplayMode.ReplayPlayer())
+      {
+         _replay.TogglePlayback(ReplayPlaybackMode.Real);
+      }
+
+      if (_input.ReplayMode.Stop())
+      {
+         _replay.StopCurrentOperation();
+      }
+
+      if (_input.ReplayMode.Save())
+      {
+         _replay.SaveRecording();
+      }
+
+      if (_input.ReplayMode.Load())
+      {
+         _replay.LoadAndPlayReplay(ReplayPlaybackMode.Real);
+      }
    }
 }

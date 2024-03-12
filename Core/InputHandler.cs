@@ -63,6 +63,7 @@ internal class InputHandler
       Cursor.lockState = CursorLockMode.None;
       PlayMode = new PlayModeInput(this, cfg, lang);
       PhotoMode = new PhotoModeInput(this, cfg, _lang);
+      ReplayMode = new ReplayModeInput(this, cfg, _lang);
    }
 
 
@@ -368,6 +369,7 @@ internal class InputHandler
 
    public PlayModeInput PlayMode { get; }
    public PhotoModeInput PhotoMode { get; }
+   public ReplayModeInput ReplayMode { get; }
 
 
    internal class PlayModeInput
@@ -382,6 +384,12 @@ internal class InputHandler
          _ih = ih;
          _cfg = cfg;
          _lang = lang;
+      }
+      
+
+      public bool BikeMoved()
+      {
+         return _ih.LeftTrigger() != 0 || _ih.RightTrigger() != 0;
       }
 
 
@@ -801,6 +809,106 @@ internal class InputHandler
                return _lang.GetText(secId, "ActionToggleFoVDoF", "Toggle FoV / DoF mode");
             case PhotoModeAction.ChangeFoVDoF:
                return _lang.GetText(secId, "ActionChangeFoVDoF", "Change FoV / DoF");
+         }
+      }
+   }
+   
+   
+   internal class ReplayModeInput
+   {
+      private readonly InputHandler _ih;
+      private readonly Configuration _cfg;
+      private readonly LanguageConfig _lang;
+
+
+      public ReplayModeInput(InputHandler ih, Configuration cfg, LanguageConfig lang)
+      {
+         _ih = ih;
+         _cfg = cfg;
+         _lang = lang;
+      }
+
+
+      public bool Record()
+      {
+         return _ih.KeyDown(KeyCode.F1) || (_ih.PlayMode.BikeMoved() && _ih._buttonHold0);
+      }
+
+
+      public bool ReplayGhost()
+      {
+         return _ih.KeyDown(KeyCode.F2);
+      }
+
+      
+      public bool ReplayPlayer()
+      {
+         return _ih.KeyDown(KeyCode.F3);
+      }
+
+      
+      public bool Stop()
+      {
+         return _ih.KeyDown(KeyCode.F4);
+      }
+
+
+      public bool Save()
+      {
+         return _ih.KeyDown(KeyCode.F5);
+      }
+
+
+      public bool Load()
+      {
+         return _ih.KeyDown(KeyCode.F6);
+      }
+
+      
+      public string GetKeyText(ReplayModeAction action)
+      {
+         switch (action)
+         {
+           default: return "";
+           case ReplayModeAction.Record: return "F1";
+           case ReplayModeAction.ReplayWatch: return "F2";
+           case ReplayModeAction.Save: return "F5";
+           case ReplayModeAction.Load: return "F6";
+         }
+      }
+
+
+      public string GetButtonText(ReplayModeAction action)
+      {
+         switch (action)
+         {
+            default: return "";
+            case ReplayModeAction.Record: return "F1";
+            case ReplayModeAction.ReplayWatch: return "F2";
+            case ReplayModeAction.Save: return "F5";
+            case ReplayModeAction.Load: return "F6";
+         }
+      }
+
+
+      public string GetActionText(ReplayModeAction action)
+      {
+         const string secId = "ReplayMode";
+         switch (action)
+         {
+            default: return "";
+            case ReplayModeAction.ReplayWatch:
+               return _lang.GetText(secId, "ActionReplay", "Watch Replay");
+            case ReplayModeAction.ReplayGhost:
+               return _lang.GetText(secId, "ActionRecord", "Play Replay");
+            case ReplayModeAction.Record:
+               return _lang.GetText(secId, "ActionRecord", "Record");
+            case ReplayModeAction.Stop:
+               return _lang.GetText(secId, "ActionStop", "Stop");
+            case ReplayModeAction.Save:
+               return _lang.GetText(secId, "ActionSave", "Save");
+            case ReplayModeAction.Load:
+               return _lang.GetText(secId, "ActionLoad", "Load");
          }
       }
    }

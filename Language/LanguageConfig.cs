@@ -1,6 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
-using AlternativeCameraMod.Language.Ini;
+using AlternativeCameraMod.Ini;
 
 
 namespace AlternativeCameraMod.Language;

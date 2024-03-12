@@ -1,5 +1,7 @@
 ﻿using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
+using Il2CppSystem.Text;
+using UnityEngine;
 
 
 namespace AlternativeCameraMod;
@@ -22,6 +24,22 @@ internal class DevHelper
       _hud = hud;
       _lang = lang;
       _cfg = cfg;
+
+   }
+
+
+   private string GetOutputFolder()
+   {
+      var debugOutputFolder = new FileInfo("UserData\\LMDdev").FullName;
+      Directory.CreateDirectory(debugOutputFolder);
+      return debugOutputFolder;
+   }
+
+   
+   private string GetOutputFilePath(string fileName)
+   {
+      var filePath = Path.Combine(GetOutputFolder(), fileName);
+      return filePath;
    }
 
 
@@ -38,5 +56,36 @@ internal class DevHelper
             cfg.Save();   
          }
       }
+   }
+
+
+   public void ProcessGameplayDevRequest()
+   {
+      if (_input.DevKey(11))
+      {
+         WriteAllGameObjectsToFile(true);
+      }
+      if (_input.DevKey(12))
+      {
+         WriteAllGameObjectsToFile();
+      }
+   }
+
+
+   private void WriteAllGameObjectsToFile(bool activeOnly = false)
+   {
+      GameObject[] gameObjects = GameObject.FindObjectsOfType<GameObject>();
+      StringBuilder sb = new StringBuilder(200000);
+      for (var index = 0; index < gameObjects.Length; index++)
+      {
+         GameObject currentObject = gameObjects[index];
+         if (!activeOnly || currentObject.active)
+         {
+            sb.AppendLine(currentObject.name);
+         }
+      }
+
+      var outFile = activeOnly ? GetOutputFilePath("LmdGameObjects_active.txt") : GetOutputFilePath("LmdGameObjects_all.txt");
+      File.WriteAllText(outFile, sb.ToString());
    }
 }

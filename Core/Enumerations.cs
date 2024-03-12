@@ -116,3 +116,29 @@ internal enum PhotoModeAction
    ToggleFoVDoF,
    ChangeFoVDoF
 }
+
+
+internal enum ReplayModeAction
+{
+   Record,
+   ReplayWatch,
+   ReplayGhost,
+   Stop,
+   Save,
+   Load
+}
+
+
+internal enum ReplayOperatingMode
+{
+   None,
+   Recording,
+   Playback
+}
+
+
+public enum ReplayPlaybackMode
+{
+   Ghost,
+   Real
+}

@@ -28,6 +28,7 @@ internal class CameraControl
    // The main camera itself. Used to set the field of view
    private Camera _mainCamera = null!;
    private PlayCamera _defaultPlayCamera = null!;
+   private Vector3 _lastBikePos;
 
    private static readonly LayerMask __cameraCollisionLayers =
       LayerMask.GetMask("Ground", "Obstacle", "EnvironmentOther", "Terrain", "Lava");
@@ -128,9 +129,20 @@ internal class CameraControl
       _isometricFoV = DefaultIsometricFoV;
       _thirdPersonFoV = LimitBikeCamFoV(_cfg.Camera.ThirdPersonFoV.Value, CameraView.ThirdPerson);
       _firstPersonFoV = LimitBikeCamFoV(_cfg.Camera.FirstPersonFoV.Value, CameraView.FirstPerson);
+
+      _state.TriggerOccurred += OnTrigger;
    }
 
 
+   private void OnTrigger(object? sender, TriggerEventArgs e)
+   {
+      if (e.TriggerEvent == TriggerEvent.Start)
+      {
+         ResetStoredBikePosition();
+      }
+   }
+
+   
    public CameraView CurrentCamView
    {
       get { return _currentCamView; }
@@ -987,7 +999,21 @@ internal class CameraControl
       get { return (int)_mainCamera.fieldOfView; }
    }
 
-   
+
+   public Vector3 Position
+   {
+      get { return _camTransform.position; }
+      set { _camTransform.position = value; }
+   }
+
+
+   public Quaternion Rotation
+   {
+      get { return _camTransform.rotation; }
+      set { _camTransform.rotation = value; }
+   }
+
+
    private void ApplyCameraMode(CameraView camView)
    {
       if (GatherCameraRelatedGameObjects())
@@ -1162,5 +1188,36 @@ internal class CameraControl
       fmt = fmt.Replace("{cnt5}", _screenshotCounter.ToString("D5"));
 
       return fmt.Trim();
+   }
+
+   
+   private void ResetStoredBikePosition()
+   {
+      _lastBikePos = Vector3.zero;
+   }
+
+
+   public bool FreeStuckBike()
+   {
+      if (_lastBikePos.x == 0 && _lastBikePos.y == 0 && _lastBikePos.z == 0)
+      {
+         _lastBikePos = _bikeTransform.position;
+         return false;
+      }
+
+      if (_lastBikePos.Equals(_bikeTransform.position))
+      {
+         //_bikeTransform.position = new Vector3(_bikeTransform.position.x, _bikeTransform.position.y, _bikeTransform.position.z+1);
+         _defaultPlayCamera.enabled = !_defaultPlayCamera.enabled;
+         _lastBikePos = _bikeTransform.position;
+         _logger.LogDebug("Shake stuck bike");
+         return false;
+      }
+      else
+      {
+         _defaultPlayCamera.enabled = _currentCamView == CameraView.Original;
+         _logger.LogDebug("Bike is freed");
+         return true;
+      }
    }
 }

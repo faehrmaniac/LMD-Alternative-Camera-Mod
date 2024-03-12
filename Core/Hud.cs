@@ -1,8 +1,10 @@
 ﻿using System.Text;
 using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
+using Il2Cpp;
 using MelonLoader;
 using UnityEngine;
+using static UnityEngine.Random;
 
 
 namespace AlternativeCameraMod;
@@ -12,7 +14,7 @@ internal class Hud
    const string InstructionPrefix = " ► ";
    const string InstructionSeparator = " ├  ";
    const string InstructionSeparatorLast = " └  ";
-   
+
    private readonly State _state;
    private readonly CameraControl _camera;
    private readonly InputHandler _input;
@@ -26,7 +28,7 @@ internal class Hud
    private bool _intialized;
    private PlayModeHudInstructions _playModeInstr;
    private PhotoModeHudInstructions _photoModeInstr;
-   
+
 
    public Hud(State state, CameraControl camera, InputHandler input, Configuration cfg,
                      LanguageConfig lang, Logger logger)
@@ -51,7 +53,7 @@ internal class Hud
       MelonEvents.OnGUI.Subscribe(DrawInfoOnHud, 100);
       _intialized = true;
    }
-   
+
 
    public void Close()
    {
@@ -70,7 +72,75 @@ internal class Hud
             return;
          }
       }
-      
+
+      _logger.LogVerbose("Screen: {0}", _state.CurrentScreen);
+      switch (_state.CurrentScreen)
+      {
+         case Screen.None:
+            return;
+
+         case Screen.LoadingScreen:
+            DrawHudLabel(HudLabel.LoadInfo);
+            break;
+
+         case Screen.SplashScreen:
+            // nothing
+            return;
+
+         case Screen.MainMenuScreen:
+            DrawHudLabel(HudLabel.MenuInfo);
+            break;
+
+         case Screen.PlayScreen:
+            if (_state.ReplayOperatingMode != ReplayOperatingMode.None)
+            {
+               DrawReplayState();
+            }
+
+            if (_state.ReplayOperatingMode == ReplayOperatingMode.None
+               || _state.ReplayOperatingMode == ReplayOperatingMode.Recording)
+            {
+               if (ShowHudInfo())
+               {
+                  DrawHudLabel(HudLabel.PlayInfo);
+               }
+            }
+            break;
+
+         case Screen.PhotoScreen:
+            if (_state.PhotoModeInstructionsVisible)
+            {
+               DrawPhotoModeInstructions();
+            }
+
+            break;
+
+         case Screen.PauseScreen:
+            if (_state.IsPausedInPhotoMode) return;
+
+            if (_cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value)
+            {
+               DrawPlayModeInstructions();
+            }
+            else
+            {
+               DrawHudLabel(HudLabel.ShowCamInstrInfo);
+            }
+            break;
+      }
+   }
+
+
+   enum HudLabel
+   {
+      LoadInfo,
+      MenuInfo,
+      PlayInfo,
+      ShowCamInstrInfo
+   }
+
+   private void DrawHudLabel(HudLabel hl)
+   {
       StringBuilder text = new StringBuilder();
       int x = 0, y = 0, size = 10;
       string color = "#FFFFFF";
@@ -82,14 +152,10 @@ internal class Hud
       int boxPadding = 10;
       int textWidth = 800;
       int textHeight = 120;
-      
-      _logger.LogVerbose("Screen: {0}", _state.CurrentScreen);
-      switch (_state.CurrentScreen)
-      {
-         case Screen.None:
-            return;
 
-         case Screen.LoadingScreen:
+      switch (hl)
+      {
+         case HudLabel.LoadInfo:
             text.AppendFormat(_lang.GetText("Mod",
                "Title_{Version}",
                "Alternative Camera with Photo Mode {0}",
@@ -100,11 +166,7 @@ internal class Hud
             color = Configuration.GameColor;
             break;
 
-         case Screen.SplashScreen:
-            // nothing
-            return;
-
-         case Screen.MainMenuScreen:
+         case HudLabel.MenuInfo:
             text.AppendFormat(_lang.GetText("Mod",
                "Title_{Version}",
                "Alternative Camera with Photo Mode {0}",
@@ -130,43 +192,20 @@ internal class Hud
             addShadow = true;
             break;
 
-         case Screen.PlayScreen:
-            if (!IsHudVisible()) return;
-
-            if (ShowHudInfo())
-            {
-               x = 20;
-               y = UnityEngine.Screen.currentResolution.height - 28;
-               size = Math.Max(5, _cfg.PlayMode.ModHudTextSize.Value);
-               color = "#FFFFFF";
-               BuildHudInfoText(text);
-            }
-
+         case HudLabel.PlayInfo:
+            x = 20;
+            y = UnityEngine.Screen.currentResolution.height - 28;
+            size = Math.Max(5, _cfg.PlayMode.ModHudTextSize.Value);
+            color = "#FFFFFF";
+            BuildHudInfoText(text);
             break;
 
-         case Screen.PhotoScreen:
-            if (_state.PhotoModeInstructionsVisible)
-            {
-               DrawPhotoModeInstructionsOnHud();
-            }
-
-            break;
-         
-         case Screen.PauseScreen:
-            if (_state.IsPausedInPhotoMode) return;
-
-            if (_cfg.PlayMode.ShowCamInstructionsInPauseMenu.Value)
-            {
-               DrawPlayModeInstructionsOnHud();
-            }
-            else
-            {  
-               x = 1300;
-               y = UnityEngine.Screen.currentResolution.height - 120;
-               size = Math.Max(5, _cfg.PlayMode.ModHudTextSize.Value);
-               color = "#FFFFFF";
-               text.Append(_lang.GetText("PlayMode", "PressKeyForInstructions_{key}", "(press {0} for instructions)", "'I' / 'R-Stick'"));
-            }
+         case HudLabel.ShowCamInstrInfo:
+            x = 1300;
+            y = UnityEngine.Screen.currentResolution.height - 120;
+            size = Math.Max(5, _cfg.PlayMode.ModHudTextSize.Value);
+            color = "#FFFFFF";
+            text.Append(_lang.GetText("PlayMode", "PressKeyForInstructions_{key}", "(press {0} for instructions)", "'I' / 'R-Stick'"));
             break;
       }
 
@@ -174,20 +213,20 @@ internal class Hud
       {
          if (addBox)
          {
-            GUI.Box(new Rect(x - boxPadding, y - boxPadding, textWidth + boxPadding * 2, textHeight + boxPadding*2), "");
+            GUI.Box(new Rect(x - boxPadding, y - boxPadding, textWidth + boxPadding * 2, textHeight + boxPadding * 2), "");
          }
          if (addShadow)
          {
-            GUI.Label(new Rect(x + shadowOffsetX, y + shadowOffsetY, textWidth, textHeight), 
+            GUI.Label(new Rect(x + shadowOffsetX, y + shadowOffsetY, textWidth, textHeight),
                FormatLabel(text.ToString(), size, shadowColor, true));
          }
 
-         GUI.Label(new Rect(x, y, textWidth, textHeight), 
+         GUI.Label(new Rect(x, y, textWidth, textHeight),
             FormatLabel(text.ToString(), size, color, true));
       }
+
    }
 
-   
    internal static string FormatLabel(string text, int size, string color, bool bold = false, bool italic = false)
    {
       string preFmt = "";
@@ -202,7 +241,7 @@ internal class Hud
          preFmt += "<i>";
          postFmt += "</i>";
       }
-      
+
       var str = String.Format("{3}<color={2}><size={1}>{0}</size></color>{4}", text, size, color, preFmt, postFmt);
       return str;
    }
@@ -232,14 +271,14 @@ internal class Hud
       };
 
       var actions = new StringBuilder();
-      
+
       actions.AppendLine(_lang.GetText("Input", "ActionHeader", "ACTION"));
       for (var index = 0; index < actionListInOrderToShow.Count; index++)
       {
          var action = actionListInOrderToShow[index];
          actions.AppendLine(InstructionPrefix + _input.PlayMode.GetActionText(action));
       }
-      
+
       var keys = new StringBuilder();
       keys.AppendLine(_lang.GetText("Input", "KeyMouseHeader", "KEYBOARD/MOUSE"));
       for (var index = 0; index < actionListInOrderToShow.Count; index++)
@@ -247,7 +286,7 @@ internal class Hud
          var action = actionListInOrderToShow[index];
          keys.AppendLine((index < actionListInOrderToShow.Count - 1 ? InstructionSeparator : InstructionSeparatorLast) + _input.PlayMode.GetKeyText(action));
       }
-      
+
       var btns = new StringBuilder();
       btns.AppendLine(_lang.GetText("Input", "ControllerHeader", "CONTROLLER"));
       for (var index = 0; index < actionListInOrderToShow.Count; index++)
@@ -255,7 +294,7 @@ internal class Hud
          var action = actionListInOrderToShow[index];
          btns.AppendLine((index < actionListInOrderToShow.Count - 1 ? InstructionSeparator : InstructionSeparatorLast) + _input.PlayMode.GetButtonText(action));
       }
-      
+
       var pmLabel = _lang.GetText("PlayMode", "Title", "CONTROLS");
 
       _playModeInstr = new PlayModeHudInstructions();
@@ -264,11 +303,11 @@ internal class Hud
          actions.ToString(),
          keys.ToString(),
          btns.ToString(),
-         titleSize: 30, 
-         titleColor: Configuration.GameColor2, 
-         textSize: 20, 
-         textColor: nameof(Color.white), 
-         shadowColor: nameof(Color.black), 
+         titleSize: 30,
+         titleColor: Configuration.GameColor2,
+         textSize: 20,
+         textColor: nameof(Color.white),
+         shadowColor: nameof(Color.black),
          shadowOffset: 2);
    }
 
@@ -297,7 +336,7 @@ internal class Hud
          var action = actionListInOrderToShow[index];
          actions.AppendLine(InstructionPrefix + _input.PhotoMode.GetActionText(action));
       }
-      
+
       var keys = new StringBuilder();
       keys.AppendLine(_lang.GetText("Input", "KeyMouseHeader", "KEYBOARD/MOUSE"));
       for (var index = 0; index < actionListInOrderToShow.Count; index++)
@@ -305,7 +344,7 @@ internal class Hud
          var action = actionListInOrderToShow[index];
          keys.AppendLine((index < actionListInOrderToShow.Count - 1 ? InstructionSeparator : InstructionSeparatorLast) + _input.PhotoMode.GetKeyText(action));
       }
-      
+
       var btns = new StringBuilder();
       btns.AppendLine(_lang.GetText("Input", "ControllerHeader", "CONTROLLER"));
       for (var index = 0; index < actionListInOrderToShow.Count; index++)
@@ -313,7 +352,7 @@ internal class Hud
          var action = actionListInOrderToShow[index];
          btns.AppendLine((index < actionListInOrderToShow.Count - 1 ? InstructionSeparator : InstructionSeparatorLast) + _input.PhotoMode.GetButtonText(action));
       }
-      
+
       var pmLabel = _lang.GetText("PhotoMode", "Title", "PHOTO MODE");
 
       _photoModeInstr = new PhotoModeHudInstructions();
@@ -322,9 +361,9 @@ internal class Hud
          actions.ToString(),
          keys.ToString(),
          btns.ToString(),
-         titleSize: 30, 
-         titleColor: Configuration.GameColor2, 
-         textSize: 20, 
+         titleSize: 30,
+         titleColor: Configuration.GameColor2,
+         textSize: 20,
          textColor: nameof(Color.white),
       shadowColor: nameof(Color.black),
       shadowOffset: 2);
@@ -337,21 +376,27 @@ internal class Hud
    }
 
 
-   private void WriteLabel(string text, string shadowText, float x, float y, float w,  float h, float shadowOffset = 2)
+   private void WriteLabel(Label label, float x, float y, float w, float h)
+   {
+      WriteLabel(label.LabelText, label.ShadowText, x, y, w, h, label.ShadowOffset);
+   }
+
+
+   private void WriteLabel(string text, string shadowText, float x, float y, float w, float h, float shadowOffset = 2)
    {
       GUI.Label(new Rect(x + shadowOffset, y + shadowOffset, w, h), shadowText);
       GUI.Label(new Rect(x, y, w, h), text);
    }
 
 
-   private void DrawPlayModeInstructionsOnHud()
+   private void DrawPlayModeInstructions()
    {
       var wA = _lang.GetIntNum("PlayMode", "ColWidthAction", 450);
       var wC = _lang.GetIntNum("PlayMode", "ColWidthController", 200);
       var wK = _lang.GetIntNum("PlayMode", "ColWidthKeyMouse", 200);
 
       var boxPadding = 20;
-      var boxWidth = wA + wK + wC + boxPadding*2;
+      var boxWidth = wA + wK + wC + boxPadding * 2;
       var boxHeight = 480;
 
       float xPosA = 850;
@@ -361,8 +406,8 @@ internal class Hud
       float yPosOffset = 280;
       float yPosTitle = yPosOffset;
       float yPosInstr = yPosOffset + 50;
-      
-      GUI.Box(new Rect(xPosA - boxPadding, yPosOffset - boxPadding, boxWidth + boxPadding*2, boxHeight + boxPadding*2), "");
+
+      GUI.Box(new Rect(xPosA - boxPadding, yPosOffset - boxPadding, boxWidth + boxPadding * 2, boxHeight + boxPadding * 2), "");
 
       WriteLabel(_playModeInstr.Title, _playModeInstr.TitleShadow, xPosA, yPosTitle, 1000, 200);
       WriteLabel(_playModeInstr.Actions, _playModeInstr.ActionsShadow, xPosA, yPosInstr, 2000, 2000);
@@ -370,8 +415,8 @@ internal class Hud
       WriteLabel(_playModeInstr.Buttons, _playModeInstr.ButtonsShadow, xPosB, yPosInstr, 2000, 2000);
    }
 
-   
-   private void DrawPhotoModeInstructionsOnHud()
+
+   private void DrawPhotoModeInstructions()
    {
       var focusModeLabel = _lang.GetText("PhotoMode", "FocusAdjustModeLabel_{state}", "Focus mode: {0}", GetFocusModeText());
       var wA = _lang.GetIntNum("PhotoMode", "ColWidthAction", 350);
@@ -379,8 +424,8 @@ internal class Hud
       var wK = _lang.GetIntNum("PhotoMode", "ColWidthKeyMouse", 200);
 
       var boxPadding = 20;
-      var boxWidth = wA + wK + wC + boxPadding*2;
-      var boxHeight = 480;
+      var boxWidth = wA + wK + wC + boxPadding * 2;
+      var boxHeight = 440;
 
       float xPosA = 50;
       float xPosK = xPosA + wA;
@@ -392,23 +437,23 @@ internal class Hud
       float yPosState = 600;
       float yPosSaveInfo = 680 + boxPadding;
 
-      GUI.Box(new Rect(xPosA - boxPadding, yPosTitle - boxPadding, boxWidth + boxPadding*2, boxHeight + boxPadding*2), "");
-      
+      GUI.Box(new Rect(xPosA - boxPadding, yPosTitle - boxPadding, boxWidth + boxPadding * 2, boxHeight + boxPadding * 2), "");
+
       WriteLabel(_photoModeInstr.Title, _photoModeInstr.TitleShadow, xPosA, yPosTitle, 1000, 200);
       WriteLabel(_photoModeInstr.Actions, _photoModeInstr.ActionsShadow, xPosA, yPosInstr, 2000, 2000);
       WriteLabel(_photoModeInstr.Keys, _photoModeInstr.KeysShadow, xPosK, yPosInstr, 2000, 2000);
       WriteLabel(_photoModeInstr.Buttons, _photoModeInstr.ButtonsShadow, xPosC, yPosInstr, 2000, 2000);
-      
+
       WriteLabel(_photoModeInstr.Note, _photoModeInstr.NoteShadow, xPosA, yPosNote, 2000, 2000, 1);
       WriteLabel(FormatLabel(focusModeLabel, 20, "lightblue"), FormatLabel(focusModeLabel, 20, "black"), xPosA, yPosState, 2000, 2000, 2);
-      
+
       if (!string.IsNullOrEmpty(_state.LastScreenshotInfo))
       {
-         GUI.Box(new Rect(xPosA - boxPadding, yPosSaveInfo - boxPadding, boxWidth + boxPadding*2, 90), "");
+         GUI.Box(new Rect(xPosA - boxPadding, yPosSaveInfo - boxPadding, boxWidth + boxPadding * 2, 90), "");
 
          WriteLabel(
-            FormatLabel(_state.LastScreenshotInfo, 20, Configuration.GameColor2), 
-            FormatLabel(_state.LastScreenshotInfo, 20, "black"),
+            FormatLabel(_state.LastScreenshotInfo, 20, Configuration.GameColor2, true),
+            FormatLabel(_state.LastScreenshotInfo, 20, "black", true),
             xPosA, yPosSaveInfo, boxWidth, 200);
       }
    }
@@ -418,10 +463,10 @@ internal class Hud
    {
       switch (_camera.FocusAdjustMode)
       {
-         case CameraFocusAdjustMode.DepthOfField :
+         case CameraFocusAdjustMode.DepthOfField:
             var dofLabel = _lang.GetText("PhotoMode", "DepthOfField_{dof}", "depth of field distance ({0})", _camera.DepthOfField);
             return dofLabel;
-            
+
          default:
          case CameraFocusAdjustMode.FieldOfView:
             var fovLabel = _lang.GetText("PhotoMode", "FieldOfView_{fov}", "field of view ({0})", _camera.FieldOfView);
@@ -568,6 +613,79 @@ internal class Hud
 
                target.Append(_lang.GetText("Mod", "CamAlignLabel_{align}", "({0})", align));
                break;
+         }
+      }
+   }
+
+   
+   private void DrawReplayState()
+   {
+      int xOffset = 10;
+      int yOffset = 250;
+      int padding = 10;
+      if (_state.ReplayOperatingMode == ReplayOperatingMode.Recording)
+      {
+         GUI.Box(new Rect(xOffset-padding, yOffset-padding, 180, 100), "");
+
+         var lbl = new Label("RECORDING ...", 20, "red", "black", true);
+         WriteLabel(lbl, xOffset, yOffset, 280, 40);
+         
+         var lbl2 = new Label("F1/F4=stop\nF5=save", 15, "yellow", "black");
+         WriteLabel(lbl2, xOffset, yOffset + 40, 280, 50);
+      }
+      else if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback)
+      {
+         GUI.Box(new Rect(xOffset-padding, yOffset-padding, 180, 140), "");
+
+         string txt = (_state.PlaybackMode == ReplayPlaybackMode.Ghost ? "GHOST PLAY" : "PLAYBACK");
+         var lbl = new Label(txt, 20, "yellow", "black", true);
+         WriteLabel(lbl, xOffset, yOffset, 280, 30);
+
+         var lbl2 = new Label("F2=play with ghost\nF3=watch\nF4=stop\nF6=load", 15, "yellow", "black");
+         WriteLabel(lbl2, xOffset, yOffset + 40, 280, 80);
+      }
+   }
+
+
+   struct Label
+   {
+      public string Text { get; }
+      public int Size { get; }
+      public string TextColor { get; }
+      public string ShadowColor { get; }
+      public bool Bold { get; }
+      public bool Italic { get; }
+      public int ShadowOffset { get; }
+
+
+      public Label(string text, int size, string textColor, string shadowColor = "", bool bold = false, bool italic = false, int shadowOffset = 2)
+      {
+         Text = text;
+         Size = size;
+         TextColor = textColor;
+         ShadowColor = shadowColor;
+         Bold = bold;
+         Italic = italic;
+         ShadowOffset = shadowOffset;
+      }
+
+
+      public string LabelText
+      {
+         get { return FormatLabel(Text, Size, TextColor, Bold, Italic); }
+      }
+
+
+      public string ShadowText
+      {
+         get
+         {
+            if (ShadowColor == "")
+            {
+               return "";
+            }
+
+            return FormatLabel(Text, Size, ShadowColor, Bold, Italic);
          }
       }
    }

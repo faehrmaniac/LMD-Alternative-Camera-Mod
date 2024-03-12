@@ -54,6 +54,7 @@ internal class Configuration
       _categories.Add(nameof(KeyboardSettings), new KeyboardSettings(_filePath, lng));
       _categories.Add(nameof(PlayModeSettings), new PlayModeSettings(_filePath, lng));
       _categories.Add(nameof(PhotoModeSettings), new PhotoModeSettings(_filePath, lng));
+      _categories.Add(nameof(ReplayModeSettings), new ReplayModeSettings(_filePath, lng));
    }
 
 
@@ -153,10 +154,10 @@ internal class Configuration
       get { return (CommonSettings)_categories[nameof(CommonSettings)]; }
    }
 
-
-   public PlayModeSettings PlayMode
+   
+   public CameraSettings Camera
    {
-      get { return (PlayModeSettings)_categories[nameof(PlayModeSettings)]; }
+      get { return (CameraSettings)_categories[nameof(CameraSettings)]; }
    }
 
 
@@ -171,21 +172,27 @@ internal class Configuration
       get { return (KeyboardSettings)_categories[nameof(KeyboardSettings)]; }
    }
 
+   
+   public MouseSettings Mouse
+   {
+      get { return (MouseSettings)_categories[nameof(MouseSettings)]; }
+   }
+   
+
+   public PlayModeSettings PlayMode
+   {
+      get { return (PlayModeSettings)_categories[nameof(PlayModeSettings)]; }
+   }
+
 
    public PhotoModeSettings PhotoMode
    {
       get { return (PhotoModeSettings)_categories[nameof(PhotoModeSettings)]; }
    }
 
-
-   public MouseSettings Mouse
+   
+   public ReplayModeSettings ReplayMode
    {
-      get { return (MouseSettings)_categories[nameof(MouseSettings)]; }
-   }
-
-
-   public CameraSettings Camera
-   {
-      get { return (CameraSettings)_categories[nameof(CameraSettings)]; }
+      get { return (ReplayModeSettings)_categories[nameof(ReplayModeSettings)]; }
    }
 }

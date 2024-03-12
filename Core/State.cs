@@ -16,6 +16,26 @@ internal class State
    private int _fps;
    private bool _needCameraReset;
    private bool _initialized;
+   private string _activeMapName;
+   private LevelState _levelState;
+   private bool _handleStuckBike;
+
+
+   private static readonly string[] __menuScenes = {
+      "Menu_Alps_01", "Menu_Autumn_01", "Menu_Canyon_01", "Menu_Rockies_01", "Menu_Island_01",
+      "gameplay", "DontDestroyOnLoad", "HideAndDontSave"
+   };
+
+   private int _trackSectionId;
+
+
+   enum LevelState
+   {
+      WaitForStart,
+      Running,
+      Finished
+   }
+
 
 
    public State(Logger logger)
@@ -147,6 +167,7 @@ internal class State
       _logger.LogDebug("Exit photomode: {0} / {1} / {2}", _lastScreenState, _currentScreen, _menuWasOpenedWhileInPhotoMode);
       PhotoModeInstructionsVisible = true; // next time show instruction again
       _needCameraReset = true;
+      _handleStuckBike = true;
    }
    
 
@@ -233,7 +254,43 @@ internal class State
 
    public string LastScreenshotInfo { get; set; }
 
-   
+
+   public ReplayOperatingMode ReplayOperatingMode { get; set; }
+
+
+   public string ActiveMapName
+   {
+      get { return _activeMapName; }
+   }
+
+
+   public ReplayPlaybackMode PlaybackMode { get; set; }
+
+
+   public int TrackSectionId
+   {
+      get { return _trackSectionId; }
+   }
+
+
+   public bool HandleStuckBike
+   {
+      get { return _handleStuckBike; }
+   }
+
+
+   public bool IsMapLoaded
+   {
+      get { return ActiveMapName != null; }
+   }
+
+
+   public void ResetHandleStuckBike()
+   {
+      _handleStuckBike = false;
+   }
+
+
    private bool GatherMenuRelatedGameObjects()
    {
       var wrapper = GameObject.Find("Wrapper");
@@ -265,5 +322,117 @@ internal class State
       if (name.StartsWith("SplashScreen")) return false;
       if (name.StartsWith("PlayScreen")) return false;
       return true;
+   }
+
+
+   public void OnSceneLoaded(string sceneName)
+   {
+      if (CheckGameScene(sceneName))
+      {
+         _logger.LogDebug("Scene {0} loaded", sceneName);
+         _activeMapName = sceneName;
+         _levelState = LevelState.WaitForStart;
+         InstallTriggers();
+      }
+   }
+
+
+   private void InstallTriggers()
+   {
+      var checkpoints = GetCheckpoints();
+      // Add the TriggerReader to each checkpoint
+      for (var i = 0; i < checkpoints.Count; i++)
+      {
+         GameObject currentObject = checkpoints[i];
+         if (currentObject.active)
+         {
+            var triggerScript = currentObject.AddComponent<TriggerReader>();
+            triggerScript.Configure(this, TriggerEvent.Checkpoint);
+         }
+      }
+
+      // Find the finish line and add the trigger
+      var finishLine = GetFinishLine();
+      var finishTriggerReader = finishLine.AddComponent<TriggerReader>();
+      finishTriggerReader.Configure(this, TriggerEvent.Finish);
+   }
+
+
+   public List<GameObject> GetCheckpoints()
+   {
+      var cp = FindObjectsWithPartial("GameObject_Checkpoint", true);
+      return cp;
+   }
+
+   
+   private List<GameObject> FindObjectsWithPartial(string objectName, bool activeOnly)
+   {
+      GameObject[] gameObjects = GameObject.FindObjectsOfType<GameObject>();
+      string objName = objectName.ToLower();
+      var list = new List<GameObject>();
+      for (var index = 0; index < gameObjects.Length; index++)
+      {
+         GameObject currentObject = gameObjects[index];
+         string gameObjectName = currentObject.name.ToLower();
+         if (gameObjectName.Contains(objName))
+         {
+            if (!activeOnly || currentObject.active)
+            {
+               list.Add(gameObjects[index]);
+            }
+         }
+      }
+      return list;
+   }
+
+
+   public GameObject GetFinishLine()
+   {
+      return GameObject.Find("GameObject_FinishLine");
+   }
+   
+   
+   public bool CheckGameScene(string sceneName)
+   {
+      return Array.IndexOf(__menuScenes, sceneName) == -1;
+   }
+
+
+   public void OnBikeMoved()
+   {
+      OnTrigger(TriggerEvent.Start, null, null);
+   }
+
+   
+   public event EventHandler<TriggerEventArgs> TriggerOccurred;
+
+
+   public void OnTrigger(TriggerEvent triggerEvent, GameObject gameObject, Collider other)
+   {
+      switch (triggerEvent)
+      {
+         case TriggerEvent.Start:
+            _levelState = LevelState.Running;
+            break;
+         case TriggerEvent.Checkpoint:
+            _levelState = LevelState.Running;
+            DetermineCheckpoint(gameObject.name);
+            break;
+         case TriggerEvent.Finish:
+            _levelState = LevelState.Finished;
+            break;
+      }
+      TriggerOccurred?.Invoke(this, new TriggerEventArgs(triggerEvent, gameObject, other));
+   }
+
+
+   private void DetermineCheckpoint(string checkpointName)
+   {
+      _trackSectionId = 0;
+      var cp = checkpointName.Split('_');
+      if (cp.Length > 2)
+      {
+         Int32.TryParse(cp[2], out _trackSectionId);
+      }
    }
 }

@@ -35,7 +35,7 @@ internal abstract class ModSettingsCategory
 
    public virtual void Save()
    {
-      Category.SetFilePath(_filePath, false);
+      Category.SetFilePath(_filePath, false, false);
       Category.SaveToFile();
    }
 
