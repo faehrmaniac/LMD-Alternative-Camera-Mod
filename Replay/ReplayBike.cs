@@ -40,8 +40,8 @@ internal class ReplayBike
       return rb;
    }
 
-
-   public void ShowPlayer()
+   
+   public void ShowPlayerBike()
    {
       _playerBike.active = true;
    }
@@ -51,8 +51,8 @@ internal class ReplayBike
    {
       if (_playerBike != null)
       {
-         _playerBike.active = true;
          GameObject.Destroy(_bike);
+         _playerBike.active = true;
       }
    }
 }

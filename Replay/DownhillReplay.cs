@@ -33,17 +33,18 @@ internal class DownhillReplay
 
       if (_playing)
       {
-         // just change the mode 
          return;
       }
 
       _bike = ReplayBike.Playback();
+      
+      _bike.Reanimator.Initialize(_recording.SnapshotElements);
 
       // need another bike instance since the real bike crashes a lot
       if (playbackMode == ReplayPlaybackMode.GhostChallenge)
       {
          // show player bike for playing against the ghost
-         _bike.ShowPlayer();
+         _bike.ShowPlayerBike();
       }
 
       _sectionId = startAtSectionId;
@@ -167,8 +168,8 @@ internal class DownhillReplay
       
       if (_playbackMode == ReplayPlaybackMode.Watch)
       {
-         // when real playback, the camera must follow
-         // otherwise the player runs with the ghost
+         // when real playback, the camera must follow bike, 
+         // otherwise playback shows the ghost
          RecreateCameraPosition(s1, s2, interpolationFactor);
       }
    }
@@ -176,8 +177,8 @@ internal class DownhillReplay
 
    private void RecreateCameraPosition(Snapshot s1, Snapshot s2, float interpolationFactor)
    {
-      var pos1 = s1.Locations[0].Item2;
-      var rot1 = s1.Locations[0].Item3;
+      var pos1 = s1.LocationMap["Camera"].Item1;
+      var rot1 = s1.LocationMap["Camera"].Item2;
       if (interpolationFactor < 0)
       {
          _camera.Position = pos1;
@@ -185,8 +186,8 @@ internal class DownhillReplay
       }
       else
       {
-         var pos2 = s2.Locations[0].Item2;
-         var rot2 = s2.Locations[0].Item3;
+         var pos2 = s2.LocationMap["Camera"].Item1;
+         var rot2 = s2.LocationMap["Camera"].Item2;
          _camera.Position = Vector3.Lerp(pos1, pos2, interpolationFactor);
          _camera.Rotation = Quaternion.Slerp(rot1, rot2, interpolationFactor);
       }

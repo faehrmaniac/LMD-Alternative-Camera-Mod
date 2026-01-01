@@ -15,6 +15,7 @@ internal class DownhillRecording
    private float _timePos;
    private bool _recording;
    private string _filePath;
+   private HashSet<string> _elements;
 
 
    private DownhillRecording()
@@ -23,7 +24,7 @@ internal class DownhillRecording
    }
 
 
-   public DownhillRecording(string mapName)
+   public DownhillRecording(string mapName) : this()
    {
       MapName = mapName;
    }
@@ -53,6 +54,20 @@ internal class DownhillRecording
    }
 
 
+   public HashSet<string> SnapshotElements
+   {
+      get
+      {
+         if (_elements == null)
+         {
+            _elements = new HashSet<string>(_bike.Reanimator.GetObjectNames());
+         }
+         return _elements;
+      }
+      private set { _elements = value; }
+   }
+
+
    public void Save(string filePath)
    {
       System.Diagnostics.Debug.Assert(!_recording);
@@ -61,10 +76,11 @@ internal class DownhillRecording
       {
          ini["LMDReplay"]["FormatRev"] = FormatRev.ToString();
          ini["LMDReplay"]["MapName"] = MapName;
-         ini["LMDReplay"]["Elements"] = GetSnapshotElementCount(_bike.Reanimator).ToString();
          ini["LMDReplay"]["Snapshots"] = _snapshotCount.ToString();
          ini["LMDReplay"]["Duration"] = GetDuration().ToString();
          ini["LMDReplay"]["CheckpointsPassed"] = (Sections.Count - 1).ToString();
+         ini["LMDReplay"]["ElementCount"] = GetSnapshotElementCount(_bike.Reanimator).ToString();
+         ini["LMDReplay"]["ElementOrder"] = String.Join('|', _bike.Reanimator.GetObjectNames());
 
          foreach (var sec in Sections)
          {
@@ -86,19 +102,29 @@ internal class DownhillRecording
       {
          dr.FormatRev = ini["LMDReplay"].GetValue("FormatRev", 0);
          dr.MapName = ini["LMDReplay"].GetValue("MapName", "unknown");
-         var elems = ini["LMDReplay"].GetValue("Elements", 0);
+         var elemCnt = ini["LMDReplay"].GetValue("ElementCount", 0);
 
          // Check if format matches the state of the game (are there any future changes to expect?)
-         if (elems != GetSnapshotElementCount(bike.Reanimator))
+         if (elemCnt != GetSnapshotElementCount(bike.Reanimator))
          {
-            return null;
+            // maybe some additional stuff is not used or some stuff is missing,
+            // e.g. when recording was done with a rider with hair and is loaded
+            // when a rider without hair is active, the hair data is not used.
+            // Other way round when recording is done with a rider without hair
+            // and loaded for a rider with hair, the hair movement data is missing
+            // and the hair will not be animated correctly
          }
+
+         var elems = ini["LMDReplay"].GetValue("ElementOrder", "");
+         var elemsInOrder = elems.Split('|').ToList();
+         dr.SnapshotElements = new HashSet<string>();
+         dr.SnapshotElements.UnionWith(elemsInOrder);
 
          foreach (var sectionKey in ini.GetSection("Sections").Keys)
          {
             var secNum = Int32.Parse(sectionKey);
             var secStr = ini["Sections"].GetValue(sectionKey, "");
-            var seg = TrackSection.Parse(secNum, secStr, bike.Reanimator);
+            var seg = TrackSection.Parse(secNum, secStr, elemsInOrder);
             dr.Sections.Add(seg);
          }
       }
@@ -136,7 +162,7 @@ internal class DownhillRecording
    }
 
 
-   public void Record(int sectionId, CameraControl cam, BikeReanimator bikeAnim)
+   public void Record(int sectionId, CameraControl cam)
    {
       System.Diagnostics.Debug.Assert(_recording);
 
@@ -146,7 +172,7 @@ internal class DownhillRecording
          _timePos,
          cam.Position,
          cam.Rotation,
-         bikeAnim);
+         _bike.Reanimator);
 
       while (snapshot.SectionId >= Sections.Count)
       {

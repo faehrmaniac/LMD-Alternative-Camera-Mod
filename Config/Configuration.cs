@@ -54,7 +54,7 @@ internal class Configuration
       _categories.Add(nameof(KeyboardSettings), new KeyboardSettings(_filePath, lng));
       _categories.Add(nameof(PlayModeSettings), new PlayModeSettings(_filePath, lng));
       _categories.Add(nameof(PhotoModeSettings), new PhotoModeSettings(_filePath, lng));
-      _categories.Add(nameof(ReplayModeSettings), new ReplayModeSettings(_filePath, lng));
+      //_categories.Add(nameof(ReplayModeSettings), new ReplayModeSettings(_filePath, lng));
    }
 
 
@@ -191,8 +191,8 @@ internal class Configuration
    }
 
    
-   public ReplayModeSettings ReplayMode
-   {
-      get { return (ReplayModeSettings)_categories[nameof(ReplayModeSettings)]; }
-   }
+   // public ReplayModeSettings ReplayMode
+   // {
+   //    get { return (ReplayModeSettings)_categories[nameof(ReplayModeSettings)]; }
+   // }
 }

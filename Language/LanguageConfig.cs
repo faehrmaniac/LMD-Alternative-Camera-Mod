@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
 using AlternativeCameraMod.Ini;
 
 
@@ -113,13 +114,19 @@ internal class LanguageConfig
 
    public string GetText(string sectionId, string phraseId, string defaultText, params object[] args)
    {
-      if (_ini == null) return defaultText;
       if (!_runtimeCache.TryGetValue(sectionId + "_" + phraseId, out var fmtTxt))
       {
          var defVal = "\"" + defaultText + "\"";
-         var sec = _ini.GetSection(sectionId);
-         var txt = sec.GetValue(phraseId, _fallbackLanguage?.GetFormat(sectionId, phraseId) ?? defVal);
-         fmtTxt = txt.Replace("\\n", Environment.NewLine);
+         if (_ini != null)
+         {
+            var sec = _ini.GetSection(sectionId);
+            var txt = sec.GetValue(phraseId, _fallbackLanguage?.GetFormat(sectionId, phraseId) ?? defVal);
+            fmtTxt = txt.Replace("\\n", Environment.NewLine);
+         }
+         else
+         {
+            fmtTxt = defaultText;
+         }
 
          int pos1 = fmtTxt.IndexOf('"', 0);
          int pos2 = fmtTxt.LastIndexOf('"');
@@ -130,16 +137,17 @@ internal class LanguageConfig
 
          if (pos2 < 0)
             pos2 = fmtTxt.Length;
-         
-         fmtTxt = fmtTxt.Substring(pos1, pos2-pos1);
+
+         fmtTxt = fmtTxt.Substring(pos1, pos2 - pos1);
          // escape brackets
          fmtTxt = fmtTxt.Replace("{", "{{");
          fmtTxt = fmtTxt.Replace("}", "}}");
-         fmtTxt = fmtTxt.Replace("{{0}}", "{0}"); // currently we only have text with single placeholder, so this is effective
-         
+         fmtTxt = fmtTxt.Replace("{{0}}",
+            "{0}"); // currently we only have text with single placeholder, so this is effective
+
          _runtimeCache[sectionId + "_" + phraseId] = fmtTxt;
       }
-      
+
       try
       {
          fmtTxt = String.Format(fmtTxt, args);

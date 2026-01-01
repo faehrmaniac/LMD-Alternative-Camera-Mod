@@ -4,6 +4,8 @@ using AlternativeCameraMod;
 // Megagon
 using AlternativeCameraMod.Config;
 using AlternativeCameraMod.Language;
+using Il2CppMegagon.Downhill;
+using UnityEngine;
 
 
 [assembly: MelonInfo(typeof(AlternativeCamera), "Alternative Camera with Photo Mode", AlternativeCamera.MOD_VERSION, "DevdudeX")]
@@ -22,7 +24,7 @@ public class AlternativeCamera : MelonMod
    private DevHelper _devHelper = null!;
 #endif
    
-   public const string MOD_VERSION = "3.0.0-alpha"; // also update in project build properties
+   public const string MOD_VERSION = "2.1.1"; // also update in project build properties -> Package Version, File Version, Assembly Version
 
    private bool _firstPlayFrame;
    private Configuration _cfg = null!;
@@ -31,7 +33,7 @@ public class AlternativeCamera : MelonMod
    private CameraControl _camera = null!;
    private Hud _hud = null!;
    private State _state = null!;
-   private ReplayControl _replay = null!;
+   //private ReplayControl _replay = null!;
 
 
    public override void OnEarlyInitializeMelon()
@@ -64,7 +66,7 @@ public class AlternativeCamera : MelonMod
       _input = new InputHandler(_cfg, _lang);
       _camera = new CameraControl(_state, _input, _cfg);
       _hud = new Hud(_state, _camera, _input, _cfg, _lang);
-      _replay = new ReplayControl(_state, _camera, _input, _cfg, _lang);
+      //_replay = new ReplayControl(_state, _camera, _input, _cfg, _lang);
       
 #if DEBUG
       _devHelper = new DevHelper(_state, _input, _camera, _hud, _lang, _cfg);
@@ -113,6 +115,9 @@ public class AlternativeCamera : MelonMod
    
    public override void OnLateUpdate()
    {
+
+      var m = GameObject.FindObjectsOfType<Mountain>();
+
       _state.TrackScreenState();
 
       if (_state.Suspended)
@@ -182,15 +187,15 @@ public class AlternativeCamera : MelonMod
          _state.ClearNeedCameraReset();
       }
 
-      HandleReplayModeInputs();
-      _replay.Process();
+      //HandleReplayModeInputs();
+      //_replay.Process();
       
-      if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback
-          && _replay.PlaybackMode == ReplayPlaybackMode.Watch)
-      {
-         return; // do not process game inputs, it runs playback
-      }
-
+      // if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback
+      //     && _replay.PlaybackMode == ReplayPlaybackMode.Watch)
+      // {
+      //    return; // do not process game inputs, it runs playback
+      // }
+      
       if (_state.CameraMode == CameraMode.BikeCam)
       {
          if (HandleBikeModeInputs())
@@ -477,37 +482,37 @@ public class AlternativeCamera : MelonMod
    }
 
 
-   private void HandleReplayModeInputs()
-   {
-      if (_input.ReplayMode.Record())
-      {
-         _replay.ToggleRecording();
-      }
-
-      if (_input.ReplayMode.ReplayGhost())
-      {
-         _replay.TogglePlayback(ReplayPlaybackMode.GhostChallenge);
-      }
-      
-      if (_input.ReplayMode.ReplayPlayer())
-      {
-         _replay.TogglePlayback(ReplayPlaybackMode.Watch);
-      }
-
-      if (_input.ReplayMode.Stop())
-      {
-         _replay.StopCurrentOperation();
-      }
-
-      if (_input.ReplayMode.Save())
-      {
-         _replay.SaveRecording();
-      }
-
-      if (_input.ReplayMode.Load())
-      {
-         _replay.LoadRecording();
-         //_replay.LoadAndPlayback(ReplayPlaybackMode.Watch);
-      }
-   }
+   // private void HandleReplayModeInputs()
+   // {
+   //    if (_input.ReplayMode.Record())
+   //    {
+   //       _replay.ToggleRecording();
+   //    }
+   //
+   //    if (_input.ReplayMode.ReplayGhost())
+   //    {
+   //       _replay.TogglePlayback(ReplayPlaybackMode.GhostChallenge);
+   //    }
+   //    
+   //    if (_input.ReplayMode.ReplayPlayer())
+   //    {
+   //       _replay.TogglePlayback(ReplayPlaybackMode.Watch);
+   //    }
+   //
+   //    if (_input.ReplayMode.Stop())
+   //    {
+   //       _replay.StopCurrentOperation();
+   //    }
+   //
+   //    if (_input.ReplayMode.Save())
+   //    {
+   //       _replay.SaveRecording();
+   //    }
+   //
+   //    if (_input.ReplayMode.Load())
+   //    {
+   //       _replay.LoadRecording();
+   //       //_replay.LoadAndPlayback(ReplayPlaybackMode.Watch);
+   //    }
+   // }
 }

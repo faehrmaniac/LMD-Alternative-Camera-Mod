@@ -15,7 +15,7 @@ internal class TrackSection
    }
 
 
-   public static TrackSection Parse(int trackSection, string sectionFrames, BikeReanimator bikeReanimator)
+   public static TrackSection Parse(int trackSection, string sectionFrames, List<string> elems)
    {
       var rs = new TrackSection(trackSection);
       var snapshotStrings = sectionFrames.Split(Snapshot.SnapshotMarker, StringSplitOptions.RemoveEmptyEntries);
@@ -23,7 +23,7 @@ internal class TrackSection
       {
          try
          {
-            var snapshot = Snapshot.Parse(trackSection, snapshotStr, bikeReanimator);
+            var snapshot = Snapshot.Parse(trackSection, snapshotStr, elems);
             rs.Snapshots.Add(snapshot);
          }
          catch

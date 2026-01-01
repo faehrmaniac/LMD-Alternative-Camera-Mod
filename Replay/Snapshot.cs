@@ -23,37 +23,37 @@ internal struct Snapshot
 
    public int SectionId;
    public float Timestamp;
-   public List<Tuple<string, Vector3, Quaternion>> Locations;
+   public Dictionary<string, Tuple<Vector3, Quaternion>> LocationMap;
 
 
    public Snapshot(int sectionId, float timestamp, Vector3 camPosition, Quaternion camRotation, BikeReanimator bikeReanimator)
    {
       SectionId = sectionId;
       Timestamp = timestamp;
-      Locations = new List<Tuple<string, Vector3, Quaternion>>();
+      LocationMap = new Dictionary<string, Tuple<Vector3, Quaternion>>();
       Add("Camera", camPosition, camRotation);
       foreach (var loc in bikeReanimator.GetLocations())
       {
-         Locations.Add(loc);
+         LocationMap.Add(loc.Item1, new Tuple<Vector3, Quaternion>(loc.Item2, loc.Item3));
       }
    }
 
 
    private void Add(string name, Vector3 position, Quaternion rotation)
    {
-      Locations.Add(new Tuple<string, Vector3, Quaternion>(name, position, rotation));
+      LocationMap.Add(name, new Tuple<Vector3, Quaternion>(position, rotation));
    }
 
 
-   private Snapshot(int sectionId, float timestamp, List<Tuple<string, Vector3, Quaternion>> locations)
+   private Snapshot(int sectionId, float timestamp, Dictionary<string, Tuple<Vector3, Quaternion>> locationMap)
    {
       SectionId = sectionId;
       Timestamp = timestamp;
-      Locations = locations;
+      LocationMap = locationMap;
    }
 
 
-   public static Snapshot Parse(int trackSection, string snapshotData, BikeReanimator bikeReanimator)
+   public static Snapshot Parse(int trackSection, string snapshotData, List<string> elems)
    {
       if (String.IsNullOrEmpty(snapshotData))
       {
@@ -64,7 +64,7 @@ internal struct Snapshot
       
       var timestamp = ParseFloat(parts[0]);
       
-      var locList = new List<Tuple<string, Vector3, Quaternion>>();
+      var locMap = new Dictionary<string, Tuple<Vector3, Quaternion>>();
       for (int i = 1; i < parts.Length; i++)
       {
          string[] subParts = parts[i].Split(LocationSep);
@@ -88,12 +88,12 @@ internal struct Snapshot
          }
          else
          {
-            name = bikeReanimator.GetLocationName(i - 2);
+            name = elems[i - 2];
          }
-         locList.Add(new Tuple<string, Vector3, Quaternion>(name, position, rotation));
+         locMap.Add(name, new Tuple<Vector3, Quaternion>(position, rotation));
       }
 
-      var snapshot = new Snapshot(trackSection, timestamp, locList);
+      var snapshot = new Snapshot(trackSection, timestamp, locMap);
       return snapshot;
    }
 
@@ -104,10 +104,10 @@ internal struct Snapshot
       sn.Append(SnapshotMarker);
       sn.Append(FormatFloat(Timestamp));
       
-      foreach (var location in Locations)
+      foreach (var location in LocationMap)
       {
-         var pos = location.Item2;
-         var rot = location.Item3;
+         var pos = location.Value.Item1;
+         var rot = location.Value.Item2;
          var locStr = String.Format(LocationFmt,
             FormatFloat(pos.x),
             FormatFloat(pos.y),

@@ -154,7 +154,7 @@ internal class Hud
       switch (hl)
       {
          case HudLabel.LoadInfo:
-            text.AppendFormat(_lang.GetText("Mod",
+            text.Append(_lang.GetText("Mod",
                "Title_{Version}",
                "Alternative Camera with Photo Mode {0}",
                AlternativeCamera.MOD_VERSION));
@@ -165,7 +165,7 @@ internal class Hud
             break;
 
          case HudLabel.MenuInfo:
-            text.AppendFormat(_lang.GetText("Mod",
+            text.Append(_lang.GetText("Mod",
                "Title_{Version}",
                "Alternative Camera with Photo Mode {0}",
                AlternativeCamera.MOD_VERSION).ToUpper());
@@ -184,7 +184,7 @@ internal class Hud
                color = nameof(Color.red);
                addBox = true;
                text.AppendLine();
-               text.AppendFormat(_lang.GetText("Mod", "ErrorOutputLine_{Msg}", "[ERR] {0}", _state.ErrorMessage));
+               text.Append(_lang.GetText("Mod", "ErrorOutputLine_{Msg}", "[ERR] {0}", _state.ErrorMessage));
             }
 
             addShadow = true;
@@ -203,7 +203,10 @@ internal class Hud
             y = UnityEngine.Screen.currentResolution.height - 120;
             size = Math.Max(5, _cfg.PlayMode.ModHudTextSize.Value);
             color = "#FFFFFF";
-            text.Append(_lang.GetText("PlayMode", "PressKeyForInstructions_{key}", "(press {0} for instructions)", "'I' / 'R-Stick'"));
+            text.Append(_lang.GetText("PlayMode",
+               "PressKeyForInstructions_{key}",
+               "(press {0} for instructions)",
+               "'I' / 'R-Stick'"));
             break;
       }
 
@@ -472,7 +475,7 @@ internal class Hud
       }
    }
 
-   
+
    public static Camera? GetHudCam()
    {
       var hudCamObj = GameObject.Find("UICam");
@@ -615,7 +618,7 @@ internal class Hud
       }
    }
 
-   
+
    private void DrawReplayState()
    {
       int xOffset = 10;
@@ -623,17 +626,17 @@ internal class Hud
       int padding = 10;
       if (_state.ReplayOperatingMode == ReplayOperatingMode.Recording)
       {
-         GUI.Box(new Rect(xOffset-padding, yOffset-padding, 180, 100), "");
+         GUI.Box(new Rect(xOffset - padding, yOffset - padding, 180, 100), "");
 
          var lbl = new Label("RECORDING ...", 20, "red", "black", true);
          WriteLabel(lbl, xOffset, yOffset, 280, 40);
-         
+
          var lbl2 = new Label("F1/F4=stop\nF5=save", 15, "yellow", "black");
          WriteLabel(lbl2, xOffset, yOffset + 40, 280, 50);
       }
       else if (_state.ReplayOperatingMode == ReplayOperatingMode.Playback)
       {
-         GUI.Box(new Rect(xOffset-padding, yOffset-padding, 180, 140), "");
+         GUI.Box(new Rect(xOffset - padding, yOffset - padding, 180, 140), "");
 
          string txt = (_state.PlaybackMode == ReplayPlaybackMode.GhostChallenge ? "GHOST PLAY" : "PLAYBACK");
          var lbl = new Label(txt, 20, "yellow", "black", true);
