@@ -44,7 +44,7 @@ internal class ControllerSettings : ModSettingsCategory
          "* false: stick up => look up, stick down => look down\n" +
          "* true : stick up => look down, stick down => look up");
 
-      _toggleCamStateButton = CreateEntry("ToggleCamState", ControllerButton.LB,
+      _toggleCamStateButton = CreateEntry("ToggleCamState", ControllerButton.LStick,
             "Tells which button to use to toggle between the alternative camera mode and the original camera mode\n" + 
             "Controller: None (disable), X, Y, LB, RB, LStick, RStick");
       _snapAlignCamButton = CreateEntry("SnapAlignCam", ControllerButton.RStick,
