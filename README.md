@@ -107,7 +107,7 @@ The keys are presets and can be customized. Controller inputs are fixed.
 | Original camera (isometric)             | 1                         | -                           |
 | Alternative camera: Third Person        | 2                         | -                           |
 | Alternative camera: First Person        | 3                         | -                           |
-| Toggle camera: Original <-> Alternative | Tab                       | Left Bumper *)              |
+| Toggle camera: Original <-> Alternative | Tab                       | Left Stick *)               |
 | Toggle camera auto-align mode           | 5                         | -                           |
 | Toggle invert look horizontal           | 6                         | -                           |
 | Toggle Game HUD                         | H                         | -                           |
